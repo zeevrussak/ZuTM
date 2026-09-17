@@ -1,0 +1,87 @@
+ZuTM Attribution License
+Copyright (c) 2026 Ze'ev Russak. All rights reserved.
+
+Author and copyright holder:
+    Ze'ev Russak
+    <zutm@20032014.xyz>
+
+1. DEFINITIONS
+
+   "ZuTM" means this software, its source code, and all accompanying
+   materials.
+
+   "Copy" means any reproduction of ZuTM or any substantial portion of it,
+   in source or binary form, verbatim or modified.
+
+   "Derived Work" means any work that is based on, derived from, or
+   incorporates ZuTM or any substantial portion of it, including ports,
+   forks, adaptations, and works that reuse ZuTM source code, file formats,
+   or design in whole or in part.
+
+   "You" means any person or entity that Copies ZuTM or creates a Derived
+   Work.
+
+2. GRANT OF PERMISSION
+
+   Permission is granted, free of charge, to any person obtaining a copy
+   of ZuTM, to deal in ZuTM without restriction, including without
+   limitation the rights to use, copy, modify, merge, publish, distribute,
+   sublicense, and/or sell Copies of ZuTM, and to permit persons to whom
+   ZuTM is furnished to do so, subject to the conditions in Section 3.
+
+3. ATTRIBUTION CONDITION
+
+   All Copies and Derived Works MUST give prominent credit to the author:
+
+       ZuTM (c) Ze'ev Russak <zutm@20032014.xyz>
+       https://github.com/zutm/ZuTM   (or the current official project URL)
+
+   Sufficient credit includes, at minimum, ALL of the following:
+
+   a. Retaining this license file, unmodified, in all Copies and Derived
+      Works in which files are distributed.
+
+   b. In source distributions: retaining this LICENSE.TXT file and
+      reproducing the credit line above in the README or equivalent
+      top-level documentation file of the Derived Work.
+
+   c. In binary distributions: reproducing the credit line above in the
+      product documentation, "About" dialog, or credits screen of the
+      Derived Work, in a location reasonably intended to be seen by users.
+
+   d. If your Derived Work is a software product, repository, article,
+      publication, or announcement that is based on ZuTM, stating in it
+      that it is "based on ZuTM by Ze'ev Russak" (or an equivalent
+      unambiguous statement identifying the original author).
+
+4. NO REMOVAL OF ATTRIBUTION
+
+   You may not remove, obscure, or misrepresent the attribution or
+   copyright notice of ZuTM in any Copy or Derived Work.
+
+5. NO WARRANTY
+
+   ZUTM IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+   IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+   CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+   TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH ZUTM OR
+   THE USE OR OTHER DEALINGS IN ZUTM.
+
+6. THIRD-PARTY COMPONENTS
+
+   ZuTM is designed to bundle and interoperate with third-party components
+   (including QEMU and SPICE client tooling) that are distributed under
+   their own licenses. Those licenses remain in force for those
+   components; this license applies only to the portions of the
+   distribution authored by Ze'ev Russak. See the NOTICE file and
+   third-party license texts for details.
+
+7. CREDIT TO INSPIRATION
+
+   ZuTM is a Windows port inspired by UTM for macOS (Copyright (c) 2022
+   osy, licensed under the Apache License, Version 2.0). ZuTM contains no
+   source code from UTM; interoperability with the UTM file format is
+   implemented from the publicly documented behavior of that format.
+   Credit is given here voluntarily and gratefully.

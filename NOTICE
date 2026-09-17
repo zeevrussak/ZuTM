@@ -1,0 +1,29 @@
+NOTICE — ZuTM
+=========
+
+ZuTM
+Copyright (c) 2026 Ze'ev Russak <zutm@20032014.xyz>
+Licensed under the ZuTM Attribution License (see LICENSE.TXT).
+
+This product includes and/or interoperates with the following third-party
+components, each governed by its own license:
+
+1. QEMU — a fast processor emulator
+   Copyright (c) Fabrice Bellard and the QEMU project contributors.
+   License: GNU General Public License, version 2. Distributed as a
+   separate program; ZuTM invokes it as a subprocess and contains no
+   QEMU source code. https://www.qemu.org/
+
+2. SPICE protocol & virt-viewer / remote-viewer
+   Copyright (c) Red Hat, Inc. and contributors.
+   License: GNU General Public License, version 2 or later. Invoked as a
+   separate display client program. https://gitlab.com/virt-viewer
+
+3. UTM (macOS) — ZuTM's sibling project and inspiration
+   Copyright (c) 2022 osy. License: Apache License 2.0.
+   ZuTM contains NO UTM source code. ZuTM implements interoperability
+   with the public UTM `.utm` bundle format as a clean-room
+   implementation. https://github.com/utmapp/UTM
+
+4. .NET, Windows App SDK, WinUI —
+   Copyright (c) Microsoft Corporation. MIT licensed.

@@ -1,0 +1,58 @@
+# Build outputs
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+artifacts/
+publish/
+msix/
+*.msi
+*.msix
+*.msixbundle
+*.appxupload
+
+# VS / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.rsuser
+launchSettings.json.bak
+
+# NuGet
+*.nupkg
+packages/
+.nuget/
+
+# Test results
+TestResults/
+*.trx
+coverage/
+*.opencover.xml
+*.cobertura.xml
+
+# WiX build
+installer/**/*.wixobj/
+*.wixpdb
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Secrets — never commit
+*.pfx
+*.key
+*.pem
+secrets.json
+.env
+.env.*
+
+# Bundled runtimes (fetched by scripts/fetch-qemu.ps1)
+runtimes/qemu/
+runtimes/spice/
+
+# Logs
+*.log
+logs/
