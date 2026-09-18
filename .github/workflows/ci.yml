@@ -27,7 +27,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Build solution
-        run: dotnet build ZuTM.slnx -c ${{ matrix.configuration }} -p:Platform=x64
+        run: dotnet build ZuTM.slnx -c ${{ matrix.configuration }}
 
       - name: Run unit tests (Core)
         run: dotnet test tests/ZuTM.Core.Tests/ZuTM.Core.Tests.csproj -c ${{ matrix.configuration }} --no-build --logger trx
