@@ -13,6 +13,9 @@ public enum VmStatus
     Stopped,
     Starting,
     Running,
+    Pausing,
+    Paused,
+    Resuming,
     Stopping,
 }
 
@@ -43,6 +46,9 @@ public sealed class VmItemViewModel : ObservableObject, IDisposable
     {
         VmStatus.Running => "Running",
         VmStatus.Starting => "Starting…",
+        VmStatus.Pausing => "Pausing…",
+        VmStatus.Paused => "Paused",
+        VmStatus.Resuming => "Resuming…",
         VmStatus.Stopping => "Stopping…",
         _ => "Stopped",
     };
@@ -71,12 +77,22 @@ public sealed class VmItemViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(StatusText));
                 OnPropertyChanged(nameof(CanStart));
                 OnPropertyChanged(nameof(CanStop));
+                OnPropertyChanged(nameof(CanPause));
+                OnPropertyChanged(nameof(CanResume));
+                OnPropertyChanged(nameof(CanReset));
+                OnPropertyChanged(nameof(CanClone));
+                OnPropertyChanged(nameof(CanDelete));
             }
         }
     }
 
     public bool CanStart => Status is VmStatus.Stopped;
-    public bool CanStop => Status is VmStatus.Running;
+    public bool CanStop => Status is VmStatus.Running or VmStatus.Paused;
+    public bool CanPause => Status is VmStatus.Running;
+    public bool CanResume => Status is VmStatus.Paused;
+    public bool CanReset => Status is VmStatus.Running or VmStatus.Paused;
+    public bool CanClone => Status is VmStatus.Stopped;
+    public bool CanDelete => Status is VmStatus.Stopped;
 
     internal async Task SetProcessAsync(QemuVmProcess process)
     {
@@ -95,6 +111,24 @@ public sealed class VmItemViewModel : ObservableObject, IDisposable
                 });
             }
         };
+
+        // QMP STOP/RESUME events keep the UI truthful even when the guest is
+        // paused by other means (guest agent, QEMU monitor).
+        if (process.Qmp is not null)
+        {
+            process.Qmp.EventReceived += (_, message) =>
+            {
+                var @event = message.Event;
+                if (@event == "STOP")
+                {
+                    _ = _owner.DispatchAsync(() => Status = VmStatus.Paused);
+                }
+                else if (@event == "RESUME")
+                {
+                    _ = _owner.DispatchAsync(() => Status = VmStatus.Running);
+                }
+            };
+        }
 
         Bundle.State = Bundle.State with { LastStartedUtc = DateTimeOffset.UtcNow };
         await _owner.RunUiSafeAsync(() => Bundle.Save());
@@ -240,6 +274,90 @@ public sealed class VmLibraryService : IDisposable
         vm.Status = VmStatus.Stopped;
     }
 
+    /// <summary>Freezes the guest CPUs (QMP stop); the RESUME event confirms.</summary>
+    public async Task PauseAsync(VmItemViewModel vm)
+    {
+        if (vm.Process?.Qmp is not { } qmp)
+        {
+            return;
+        }
+
+        vm.Status = VmStatus.Pausing;
+        try
+        {
+            await qmp.PauseAsync();
+        }
+        catch (QmpException ex)
+        {
+            vm.Error = ex.Message;
+            vm.Status = VmStatus.Running;
+        }
+    }
+
+    /// <summary>Continues a paused guest (QMP cont); the RESUME event confirms.</summary>
+    public async Task ResumeAsync(VmItemViewModel vm)
+    {
+        if (vm.Process?.Qmp is not { } qmp)
+        {
+            return;
+        }
+
+        vm.Status = VmStatus.Resuming;
+        try
+        {
+            await qmp.ResumeAsync();
+        }
+        catch (QmpException ex)
+        {
+            vm.Error = ex.Message;
+            vm.Status = VmStatus.Paused;
+        }
+    }
+
+    /// <summary>Hard reset: guest reboots immediately (unsaved state is lost).</summary>
+    public async Task ResetAsync(VmItemViewModel vm)
+    {
+        if (vm.Process?.Qmp is not { } qmp)
+        {
+            return;
+        }
+
+        try
+        {
+            await qmp.ResetAsync();
+        }
+        catch (QmpException ex)
+        {
+            vm.Error = ex.Message;
+        }
+    }
+
+    /// <summary>Clones a stopped VM into a sibling bundle with a fresh UUID.</summary>
+    public async Task<VmItemViewModel> CloneAsync(VmItemViewModel vm)
+    {
+        if (vm.Status != VmStatus.Stopped)
+        {
+            throw new InvalidOperationException("Stop the VM before cloning it.");
+        }
+
+        var clone = await Task.Run(() => vm.Bundle.Clone());
+        var cloneVm = new VmItemViewModel(this, clone);
+        VirtualMachines.Add(cloneVm);
+        return cloneVm;
+    }
+
+    /// <summary>Permanently deletes a stopped VM's bundle directory.</summary>
+    public async Task DeleteAsync(VmItemViewModel vm)
+    {
+        if (vm.Status != VmStatus.Stopped)
+        {
+            throw new InvalidOperationException("Stop the VM before deleting it.");
+        }
+
+        await Task.Run(() => Directory.Delete(vm.Bundle.BundlePath, recursive: true));
+        VirtualMachines.Remove(vm);
+    }
+
     public bool CanStartVm(VmItemViewModel vm, out string? reason)
     {
         if (QemuRuntime is null)
@@ -288,15 +406,22 @@ public sealed class VmLibraryService : IDisposable
             throw new FileNotFoundException("qemu-img.exe not found in the QEMU runtime.");
         }
 
-        var result = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-            qemuImg,
-            $"create -f qcow2 \"{path}\" {sizeMebiBytes}M")
+        // ArgumentList, never an interpolated command line: paths with quotes
+        // or spaces cannot inject additional qemu-img arguments.
+        var startInfo = new System.Diagnostics.ProcessStartInfo(qemuImg)
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
-        });
+        };
+        startInfo.ArgumentList.Add("create");
+        startInfo.ArgumentList.Add("-f");
+        startInfo.ArgumentList.Add("qcow2");
+        startInfo.ArgumentList.Add(Path.GetFullPath(path));
+        startInfo.ArgumentList.Add($"{sizeMebiBytes}M");
+
+        var result = System.Diagnostics.Process.Start(startInfo);
         var stderr = result?.StandardError.ReadToEnd();
         result?.WaitForExit(30_000);
         if (result is null || result.ExitCode != 0)

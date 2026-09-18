@@ -31,7 +31,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             () => SelectedVm?.CanStart == true);
         StopSelectedCommand = new AsyncRelayCommand(() => WithSelectedAsync(vm => Library.StopAsync(vm)),
             () => SelectedVm?.CanStop == true);
-        OpenFolderCommand = new RelayCommand(() => System.Diagnostics.Process.Start("explorer.exe", Library.Settings.VmFolder));
+        OpenFolderCommand = new RelayCommand(() =>
+        {
+            var startInfo = new System.Diagnostics.ProcessStartInfo("explorer.exe") { UseShellExecute = true };
+            startInfo.ArgumentList.Add(Library.Settings.VmFolder);
+            System.Diagnostics.Process.Start(startInfo);
+        });
     }
 
     public ObservableCollection<VmItemViewModel> VirtualMachines => Library.VirtualMachines;

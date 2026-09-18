@@ -139,11 +139,31 @@ public sealed class UtmBundle
 
     // -- Drive image helpers --------------------------------------------------------
 
+    /// <summary>
+    /// True when a name is a plain file name safe to combine with the bundle's
+    /// data directory. config.plist comes from arbitrary (possibly hostile)
+    /// bundles: an ImageName like "..\..\something" must never escape the
+    /// bundle through resolve or delete.
+    /// </summary>
+    internal static bool IsSafeBundleFileName(string? fileName)
+    {
+        return fileName is not null
+            && fileName.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, ':']) < 0
+            && fileName != "."
+            && fileName != ".."
+            && fileName.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+    }
+
     /// <summary>Absolute path of a drive image: bundle Data/&lt;ImageName&gt;, or the external path from ZuTM state.</summary>
     public string? ResolveDriveImagePath(UtmDrive drive)
     {
         if (!drive.IsExternal)
         {
+            if (!IsSafeBundleFileName(drive.ImageName))
+            {
+                return null; // hostile bundle metadata — never resolve outside Data/
+            }
+
             var bundled = Path.Combine(DataDirectory, drive.ImageName!);
             return File.Exists(bundled) ? bundled : null;
         }
@@ -178,9 +198,9 @@ public sealed class UtmBundle
     /// <summary>Removes a drive's bundled image file from Data/ (external images are left in place).</summary>
     public void DeleteDriveImage(UtmDrive drive)
     {
-        if (drive.IsExternal)
+        if (drive.IsExternal || !IsSafeBundleFileName(drive.ImageName))
         {
-            return;
+            return; // external — or hostile metadata that must not delete outside the bundle
         }
 
         var path = Path.Combine(DataDirectory, drive.ImageName!);
@@ -206,4 +226,57 @@ public sealed class UtmBundle
         Directory.Exists(DataDirectory)
             ? Directory.EnumerateFiles(DataDirectory).Select(f => Path.GetFileName(f)!).ToArray()
             : [];
+
+    /// <summary>
+    /// Clones the bundle to a sibling directory: config (with a fresh UUID and
+    /// name suffix by default) plus every data file. The source bundle is not
+    /// modified; running VMs must not be cloned (caller enforces).
+    /// </summary>
+    public UtmBundle Clone(string? targetBundlePath = null, bool rename = true)
+    {
+        if (!Directory.Exists(BundlePath))
+        {
+            throw new DirectoryNotFoundException($"Bundle directory not found: {BundlePath}");
+        }
+
+        targetBundlePath ??= Path.Combine(
+            Path.GetDirectoryName(BundlePath)!,
+            Path.GetFileNameWithoutExtension(BundlePath) + " copy.utm");
+
+        if (Directory.Exists(targetBundlePath))
+        {
+            throw new IOException($"Clone target already exists: {targetBundlePath}");
+        }
+
+        var configuration = Configuration;
+        if (rename)
+        {
+            configuration = configuration with
+            {
+                Information = configuration.Information with
+                {
+                    Name = configuration.Information.Name + " copy",
+                    Uuid = Guid.NewGuid(),
+                },
+            };
+        }
+
+        var clone = new UtmBundle(
+            Path.GetFullPath(targetBundlePath),
+            configuration,
+            Path.Combine(targetBundlePath, UtmBundleFiles.DataDirectory));
+        clone.Save();
+
+        // Copy every payload file verbatim (qcow2 disks, efi_vars, logs are skipped).
+        if (Directory.Exists(DataDirectory))
+        {
+            Directory.CreateDirectory(clone.DataDirectory);
+            foreach (var file in Directory.EnumerateFiles(DataDirectory))
+            {
+                File.Copy(file, Path.Combine(clone.DataDirectory, Path.GetFileName(file)));
+            }
+        }
+
+        return clone;
+    }
 }

@@ -1,6 +1,7 @@
 // ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
 
 using System.Globalization;
+using System.IO;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -31,7 +32,17 @@ public static class PlistXml
         XDocument document;
         try
         {
-            document = XDocument.Parse(xml, LoadOptions.None);
+            // Untrusted input (any .utm bundle's config.plist): keep the DOCTYPE
+            // UTM writes, but never process definitions or resolve anything.
+            var settings = new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Ignore,
+                XmlResolver = null,
+                IgnoreProcessingInstructions = true,
+                MaxCharactersInDocument = 64 * 1024 * 1024,
+            };
+            using var reader = XmlReader.Create(new StringReader(xml), settings);
+            document = XDocument.Load(reader, LoadOptions.None);
         }
         catch (XmlException ex)
         {

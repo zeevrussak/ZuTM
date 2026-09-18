@@ -118,7 +118,57 @@ public sealed partial class VmDetailView : UserControl
         }
     }
 
+    private async void OnPauseClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is not null && PauseRequested is not null)
+        {
+            await PauseRequested(this, Vm);
+        }
+    }
+
+    private async void OnResumeClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is not null && ResumeRequested is not null)
+        {
+            await ResumeRequested(this, Vm);
+        }
+    }
+
+    private async void OnResetClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is not null && ResetRequested is not null)
+        {
+            await ResetRequested(this, Vm);
+        }
+    }
+
+    private async void OnCloneClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is not null && CloneRequested is not null)
+        {
+            await CloneRequested(this, Vm);
+        }
+    }
+
+    private async void OnDeleteClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is not null && DeleteRequested is not null)
+        {
+            await DeleteRequested(this, Vm);
+        }
+    }
+
     public event Func<object, VmItemViewModel, Task>? StartRequested;
 
     public event Func<object, VmItemViewModel, Task>? StopRequested;
+
+    public event Func<object, VmItemViewModel, Task>? PauseRequested;
+
+    public event Func<object, VmItemViewModel, Task>? ResumeRequested;
+
+    public event Func<object, VmItemViewModel, Task>? ResetRequested;
+
+    public event Func<object, VmItemViewModel, Task>? CloneRequested;
+
+    public event Func<object, VmItemViewModel, Task>? DeleteRequested;
 }

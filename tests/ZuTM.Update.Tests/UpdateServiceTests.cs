@@ -213,6 +213,32 @@ public class UpdateInstallerTests : IDisposable
         Assert.Throws<ArgumentException>(() => UpdateInstaller.StartInstaller(Path.Combine(_tempRoot, "ghost.msi")));
     }
 
+
+    [Fact]
+    public async Task DownloadVerified_SanitizesHostileAssetNames()
+    {
+        // A hostile feed names its asset "..\..\evil.exe": the download
+        // must stay inside %TEMP% under a sanitized name.
+        var payload = "msi-bytes"u8.ToArray();
+        var sha = Convert.ToHexStringLower(SHA256.HashData(payload));
+        var (installer, _) = Create(payload);
+        var asset = new ReleaseAsset
+        {
+            Name = "..\\..\\evil.exe",
+            DownloadUrl = "https://example/ZuTM-x64.msi",
+            SizeBytes = payload.Length,
+        };
+
+        var downloaded = await installer.DownloadVerifiedAsync(asset, sha);
+
+        var fileName = Path.GetFileName(downloaded);
+        Assert.StartsWith("ZuTM-update-", fileName, StringComparison.Ordinal);
+        Assert.DoesNotContain("..", fileName, StringComparison.Ordinal);
+        Assert.True(Path.GetFullPath(downloaded).StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase),
+            $"download escaped temp: {downloaded}");
+        Assert.Equal(payload, await File.ReadAllBytesAsync(downloaded));
+    }
+
     public void Dispose()
     {
         try

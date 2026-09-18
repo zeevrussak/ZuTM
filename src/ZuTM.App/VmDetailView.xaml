@@ -25,7 +25,12 @@
         <TextBlock Grid.Column="0" Text="{x:Bind Vm.Name, Mode=OneWay}" Style="{StaticResource TitleTextBlockStyle}" />
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
           <Button Content="Start" Style="{StaticResource AccentButtonStyle}" IsEnabled="{x:Bind Vm.CanStart, Mode=OneWay}" Click="OnStartClick" />
+          <Button Content="Pause" IsEnabled="{x:Bind Vm.CanPause, Mode=OneWay}" Click="OnPauseClick" />
+          <Button Content="Resume" IsEnabled="{x:Bind Vm.CanResume, Mode=OneWay}" Click="OnResumeClick" />
+          <Button Content="Reset" IsEnabled="{x:Bind Vm.CanReset, Mode=OneWay}" Click="OnResetClick" ToolTipService.ToolTip="Hard-reset the guest; unsaved state is lost" />
           <Button Content="Stop" IsEnabled="{x:Bind Vm.CanStop, Mode=OneWay}" Click="OnStopClick" />
+          <Button Content="Clone" IsEnabled="{x:Bind Vm.CanClone, Mode=OneWay}" Click="OnCloneClick" ToolTipService.ToolTip="Duplicate this VM with a new identity" />
+          <Button Content="Delete" IsEnabled="{x:Bind Vm.CanDelete, Mode=OneWay}" Click="OnDeleteClick" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
         </StackPanel>
       </Grid>
 

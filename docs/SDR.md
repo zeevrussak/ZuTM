@@ -24,10 +24,10 @@
 |---|---|---|---|---|
 | FR-01 | Create a VM from a wizard (name, architecture, machine, memory, vCPUs, disk size, UEFI) | UTM | ✅ | NewVmDialog; disk created with `qemu-img` |
 | FR-02 | Start / stop a VM | UTM | ✅ | Stop = ACPI power-down w/ 30 s grace, then process-tree kill |
-| FR-03 | Pause / resume a VM | UTM | 🟡 | `QmpClient.Pause/Resume` implemented + unit-tested; toolbar buttons not yet surfaced (UI tracked by FR-60) |
-| FR-04 | Hard reset a VM | UTM | 🟡 | `QmpClient.Reset` implemented; UI surface pending |
-| FR-05 | Delete a VM (bundle) | UTM | 🔜 | Core supports bundle deletion; confirmation UX pending |
-| FR-06 | Clone/duplicate a VM | UTM | 🔜 | qcow2 backing-file overlays already used by tests; UX pending |
+| FR-03 | Pause / resume a VM | UTM | ✅ | QMP stop/cont + STOP/RESUME event-driven status + Pause/Resume buttons |
+| FR-04 | Hard reset a VM | UTM | ✅ | QMP system_reset + Reset button with tooltip |
+| FR-05 | Delete a VM (bundle) | UTM | ✅ | Confirmation dialog (destructive default: Cancel) + guarded by stopped-state; `UtmBundle` deletion unit-tested at the path-safety layer |
+| FR-06 | Clone/duplicate a VM | UTM | ✅ | `UtmBundle.Clone` (config + payloads + fresh UUID, refuses existing targets) unit-tested; Clone button clones only stopped VMs |
 | FR-07 | Save/restore VM state (snapshots, "hibernate") | UTM | 🔜 | QEMU `savevm`/`vmstate` modeled in the bundle format (`Data\vmstate` reserved); UI + lifecycle pending |
 | FR-08 | Edit every VM configuration section in the UI | UTM | 🟡 | Full model exists (lossless); wizard covers creation; section editors are FR-60 |
 | FR-09 | VM library list with status | UTM | ✅ | List + status text + error badges |

@@ -25,10 +25,25 @@ public sealed class UpdateInstaller(HttpClient httpClient)
 
         var expected = NormalizeDigest(expectedSha256);
 
+        // asset.Name arrives from the network (release JSON): sanitize before
+        // it becomes part of a filesystem path so a hostile feed cannot steer
+        // the download outside %TEMP%.
+        var safeAssetName = string.Join("_", asset.Name.Split(Path.GetInvalidFileNameChars()))
+            .Replace("..", "_", StringComparison.Ordinal);
+        if (safeAssetName.Length == 0)
+        {
+            safeAssetName = "bundle";
+        }
+
         using var response = await httpClient.GetAsync(asset.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var targetPath = Path.Combine(Path.GetTempPath(), $"ZuTM-update-{asset.Name}");
+        var targetPath = Path.GetFullPath(Path.Combine(Path.GetTempPath(), $"ZuTM-update-{safeAssetName}"));
+        if (!targetPath.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UpdateIntegrityException("Refusing to download outside the temp directory.");
+        }
+
         await using (var file = File.Create(targetPath))
         await using (var stream = await response.Content.ReadAsStreamAsync(cancellationToken))
         {
@@ -80,21 +95,24 @@ public sealed class UpdateInstaller(HttpClient httpClient)
     /// </summary>
     public static Process StartInstaller(string installerPath, bool interactive = true)
     {
-        if (!File.Exists(installerPath) || !installerPath.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
+        // Paths are passed via ArgumentList: a hostile path containing quotes
+        // can never break out into extra msiexec arguments.
+        var fullPath = Path.GetFullPath(installerPath);
+        if (!File.Exists(fullPath) || !fullPath.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException("Installer must be a downloaded .msi file.", nameof(installerPath));
         }
 
-        var arguments = $"/i \"{Path.GetFullPath(installerPath)}\"";
+        var startInfo = new ProcessStartInfo("msiexec.exe") { UseShellExecute = false };
+        startInfo.ArgumentList.Add("/i");
+        startInfo.ArgumentList.Add(fullPath);
         if (!interactive)
         {
-            arguments += " /qn /norestart";
+            startInfo.ArgumentList.Add("/qn");
+            startInfo.ArgumentList.Add("/norestart");
         }
 
-        return Process.Start(new ProcessStartInfo("msiexec.exe", arguments)
-        {
-            UseShellExecute = false,
-        }) ?? throw new InvalidOperationException("Failed to launch msiexec.");
+        return Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to launch msiexec.");
     }
 }
 

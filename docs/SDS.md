@@ -101,6 +101,18 @@ Design constants:
 
 ## 5. Security design
 
+**AD-19 · Untrusted-input boundary at the bundle and the feed.** config.plist
+and release JSON are hostile-capable inputs: the plist parser pins
+`DtdProcessing.Ignore` + no resolver + a size cap (UTM's DOCTYPE parses,
+entities never expand, undeclared references are rejected); bundle file names
+(`ImageName`) must pass `IsSafeBundleFileName` before any resolve/delete;
+release asset names are sanitized before becoming temp paths with a
+post-hoc `GetTempPath` containment assertion. **AD-20 · Argument-list-only
+process spawning** (`msiexec`, `qemu-img`, `explorer`): interpolated command
+lines are banned — paths containing quotes can never inject arguments.
+Both decisions are enforced by dedicated regression tests (FR-119).
+
+
 1. Loopback-only endpoints (D-01) — SPICE runs `disable-ticketing` *because* it is loopback-only; changing the bind address requires revisiting ticketing (tracked as the guard on FR-118).
 2. Update chain: TLS + semver gate + SHA-256 + size + refuse-if-no-digest (AD-17); Authenticode is the remaining gap (FR-115).
 3. External drive paths are host state, never silently copied into shared configs.

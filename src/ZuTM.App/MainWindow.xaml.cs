@@ -35,6 +35,11 @@ public sealed partial class MainWindow : Window
 
         DetailView.StartRequested += async (_, vm) => await library.StartAsync(vm);
         DetailView.StopRequested += async (_, vm) => await library.StopAsync(vm);
+        DetailView.PauseRequested += async (_, vm) => await library.PauseAsync(vm);
+        DetailView.ResumeRequested += async (_, vm) => await library.ResumeAsync(vm);
+        DetailView.ResetRequested += async (_, vm) => await library.ResetAsync(vm);
+        DetailView.CloneRequested += async (_, vm) => await CloneVmAsync(vm);
+        DetailView.DeleteRequested += async (_, vm) => await DeleteVmAsync(vm);
 
         ViewModel.PropertyChanged += (_, e) =>
         {
@@ -102,6 +107,66 @@ public sealed partial class MainWindow : Window
     }
 
     private void OnRefreshClick(object sender, RoutedEventArgs e) => ViewModel.ReloadCommand.Execute(null);
+
+    private async Task CloneVmAsync(VmItemViewModel vm)
+    {
+        try
+        {
+            var clone = await ViewModel.Library.CloneAsync(vm);
+            UpdateStatus();
+            _ = ShowInfoAsync($"Cloned “{vm.Name}” → “{clone.Name}”.");
+        }
+        catch (Exception ex)
+        {
+            await ShowInfoAsync($"Clone failed: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteVmAsync(VmItemViewModel vm)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = $"Delete “{vm.Name}”?",
+            Content = "This permanently removes the VM and every disk inside its bundle. This cannot be undone.",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = Content.XamlRoot,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        try
+        {
+            var deletedId = vm.Id;
+            await ViewModel.Library.DeleteAsync(vm);
+            if (ViewModel.SelectedVm?.Id == deletedId)
+            {
+                ViewModel.SelectedVm = null;
+                DetailView.Vm = null;
+            }
+
+            UpdateStatus();
+        }
+        catch (Exception ex)
+        {
+            await ShowInfoAsync($"Delete failed: {ex.Message}");
+        }
+    }
+
+    private async Task ShowInfoAsync(string message)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "ZuTM",
+            Content = message,
+            CloseButtonText = "OK",
+            XamlRoot = Content.XamlRoot,
+        };
+        await dialog.ShowAsync();
+    }
 
     private async void OnVmDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
