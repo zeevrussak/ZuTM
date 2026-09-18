@@ -112,7 +112,9 @@ P/Invoke (arm64-safe, no x64-only imports).
 | QMP | `ZuTM.Core.Tests` | In-process fake QMP server; handshake, ids, events, errors, concurrency, disconnects |
 | Bundles | `ZuTM.Core.Tests` | Real temp-dir load/save/import/atomicity |
 | Update | `ZuTM.Update.Tests` | Mock HTTP; semver precedence matrix; tamper/size rejection |
-| E2E | `ZuTM.E2E` (`ZUTM_E2E=1`) | Real QEMU boot + QMP lifecycle; on-disk bundle round-trip |
+| E2E | `ZuTM.E2E` (`ZUTM_E2E=1`) | Real QEMU boot + QMP lifecycle; on-disk bundle round-trip; Alpine VM suites below |
+| VM E2E (headless) | `ZuTM.E2E` | Boots `testimages/alpine-headless.qcow2` (unattended install by `tools/ZuTM.TestEnv`), logs in over the serial console, runs commands, verifies via QMP, powers off cleanly |
+| VM E2E (desktop) | `ZuTM.E2E` | Boots `testimages/alpine-xfce.qcow2` (XFCE + spice-vdagent + qemu-guest-agent + ImageMagick/xdotool), verifies the SPICE server, captures the desktop from inside the guest, drives the UI host-side and cross-verifies the effect in the guest |
 
 ## 6. Deliberate v0.1 limitations (roadmap)
 
@@ -124,3 +126,36 @@ P/Invoke (arm64-safe, no x64-only imports).
 - In-app config editing of every section (model + save exist; full editors land
   with the settings-UI milestone), snapshots, `remote-viewer` HWND embedding
   inside the main window (today: external window).
+
+## 7. E2E testing environment
+
+`scripts/testenv/build-images.ps1` builds (idempotently, no human input):
+
+- `testimages/alpine-virt.iso` — verified Alpine "virt" ISO (SHA-256 against
+  the published `.sha256`).
+- `testimages/alpine-headless.qcow2` — unattended Alpine install driven
+  entirely over the serial console by `tools/ZuTM.TestEnv` (login, `setup-disk`,
+  extlinux serial console, serial getty, root password). Boots to a serial
+  login in seconds under TCG.
+- `testimages/alpine-xfce.qcow2` — overlay on headless + XFCE + lightdm
+  autologin + **spice-vdagent + qemu-guest-agent** (the SPICE/GA client tools)
+  + ImageMagick/xdotool (guest-side capture/actuation) + an autostarted
+  xfce4-terminal as the keyboard-focus sink.
+
+Host→guest interaction model (verified by the suites):
+
+- **Serial console** (`SerialConsoleSession`): expect-style driver with
+  split-marker completion (`echo ZDO""NE` vs `ZDONE` — markers can never match
+  the echoed input), ANSI DSR auto-reply (busybox ash wedges otherwise), and
+  serialized writes (concurrent NetworkStream writes corrupt the stream).
+- **QMP**: lifecycle + `send-key` + `screendump` where supported.
+- **qemu-guest-agent**: QEMU does not proxy `guest-*` over QMP — the qga
+  chardev socket *is* the GA protocol endpoint; the suite speaks newline-JSON
+  to it directly (`guest-ping`/`guest-exec`).
+
+Known platform caveats encoded in the tests: this QEMU Windows build drops
+`screendump` to absolute paths silently, only dumps the legacy VGA plane
+(black once the guest uses a KMS scanout — hence guest-side capture), and its
+headless `send-key` never reaches guest evdev (hence the guest-agent
+actuator); a SPICE client attached via remote-viewer provides real
+vdagent-driven input for interactive use.

@@ -228,3 +228,20 @@ public sealed class QemuVmProcess : IAsyncDisposable
         _process.Dispose();
     }
 }
+
+/// <summary>Scopes a VM's lifetime: disposal (graceful stop) runs even if the caller throws.</summary>
+public static class QemuVmProcessLeaseExtensions
+{
+    public static IAsyncDisposable Lease(this QemuVmProcess vm) => new VmLease(vm);
+
+    private sealed class VmLease(QemuVmProcess vm) : IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync()
+        {
+            if (vm.State != VmRunState.Stopped)
+            {
+                await vm.DisposeAsync();
+            }
+        }
+    }
+}

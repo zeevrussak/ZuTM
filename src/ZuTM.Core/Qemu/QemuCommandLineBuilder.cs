@@ -487,6 +487,12 @@ public sealed class QemuCommandLineBuilder
         _arguments.Add("-device");
         _arguments.Add("usb-tablet");
 
+        // Host-driven keyboard: QMP send-key and SPICE client input deliver
+        // through the input layer to virtio-keyboard; on fully headless
+        // setups (no display backend) the emulated PS/2 route is unreliable.
+        _arguments.Add("-device");
+        _arguments.Add("virtio-keyboard-pci");
+
         if (input.HasUsbSharing)
         {
             for (var i = 0; i < Math.Clamp(input.MaximumUsbShare, 0, 16); i++)

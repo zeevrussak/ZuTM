@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>ZuTM.TestEnv</RootNamespace>
+    <Description>Builds ZuTM's E2E testing environment: downloads the Alpine ISO and installs unattended headless + XFCE/SPICE VM images by driving the serial console.</Description>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ZuTM.Core\ZuTM.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -44,9 +44,9 @@ public sealed class AcceleratorDetector
             // WHvCapabilityCodeHypervisorPresent = 0; result is a ULONG boolean.
             return WhvGetCapability(0, out var present, sizeof(ulong), out _) == 0 && present != 0;
         }
-        catch (DllNotFoundException)
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
         {
-            return false; // WHPX optional feature not installed
+            return false; // WHPX optional feature absent or stubbed on this host
         }
     }
 

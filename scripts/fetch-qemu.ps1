@@ -53,15 +53,14 @@ if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
 & $sevenZip x -y "-o$extractDir" $downloadPath | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "7-Zip extraction failed with $LASTEXITCODE" }
 
-# Normalize to runtimes/qemu/{bin,share}: the payload keeps executables and
-# DLLs at the archive root and firmware under share\.
-$binDir = Join-Path $targetDir 'bin'
-if (Test-Path $binDir) { Remove-Item $binDir -Recurse -Force }
-New-Item -ItemType Directory -Force -Path $binDir | Out-Null
-
+# Keep the installer's flat layout: executables and DLLs at the archive
+# root, firmware under share\, QEMU modules under lib\. QEMU resolves its
+# modules relative to the executable — moving the exes into a bin\ subdir
+# breaks modular devices (QXL and friends silently vanish).
+Get-ChildItem $targetDir -File | Remove-Item -Force -ErrorAction SilentlyContinue
 Get-ChildItem $extractDir -File |
     Where-Object Name -notin @('install_script.iss') |
-    ForEach-Object { Move-Item $_.FullName (Join-Path $binDir $_.Name) -Force }
+    ForEach-Object { Move-Item $_.FullName (Join-Path $targetDir $_.Name) -Force }
 
 foreach ($folder in 'share', 'lib', 'python') {
     $source = Join-Path $extractDir $folder
@@ -73,7 +72,7 @@ foreach ($folder in 'share', 'lib', 'python') {
 }
 Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
 
-$qemuExe = Join-Path $targetDir 'bin\qemu-system-x86_64.exe'
+$qemuExe = Join-Path $targetDir 'qemu-system-x86_64.exe'
 if (-not (Test-Path $qemuExe)) { throw "Expected $qemuExe after extraction" }
 
 Write-Host "QEMU runtime ready: $qemuExe" -ForegroundColor Green

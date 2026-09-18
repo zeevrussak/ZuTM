@@ -39,7 +39,10 @@ v0.1.0 foundation milestone — shipped and verified in-repo:
   SHA-256-verified download, msiexec hand-off.
 - **WinUI 3 app**: VM list/detail, new-VM wizard, settings + updates UI.
 - **E2E suite** (`ZUTM_E2E=1`): real-QEMU QMP lifecycle, on-disk bundle
-  round-trip.
+  round-trip, plus **real Alpine VMs** — a headless install that logs in and
+  runs commands over the serial console, and an XFCE desktop image with
+  SPICE guest tools whose UI is captured and host-controlled in the test
+  (environment built unattended by `scripts/testenv/build-images.ps1`).
 - **MSI** (`scripts/build-installer.ps1`): x64 + ARM64 WiX installers with
   in-place major upgrades; CI publishes GitHub Releases the app updates
   from.

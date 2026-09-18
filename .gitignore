@@ -53,6 +53,13 @@ secrets.json
 runtimes/qemu/
 runtimes/spice/
 
+# E2E testing environment (scripts/testenv/)
+testimages/
+
+# Local diagnostics artifacts
+/*.ppm
+/*.png
+
 # Logs
 *.log
 logs/
