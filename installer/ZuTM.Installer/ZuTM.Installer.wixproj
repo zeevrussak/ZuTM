@@ -11,6 +11,9 @@
     <DefineConstants>Version=$(InstallerVersion);PublishDir=$(PublishDir)</DefineConstants>
     <!-- HEAT5149 (heat deprecation notice on the v6 line) is informational. -->
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- QEMU locale files carry non-MSI language ids; ICE03's column format
+         check flags them even though the data is inert. -->
+    <SuppressIces>ICE03</SuppressIces>
   </PropertyGroup>
 
   <ItemGroup>
