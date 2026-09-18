@@ -1,0 +1,47 @@
+root = true
+
+# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz>
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,xml,plist,csproj,props,targets,wxs,wixproj,manifest}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+# Core style
+csharp_style_namespace_declarations = file_scoped:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_prefer_braces = true:warning
+csharp_style_file_scoped_namespaces = true:warning
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# Strict correctness — enforced (repo builds with warnings-as-errors)
+dotnet_style_readonly_field = true:warning
+dotnet_analyzer_diagnostic.category-Security.severity = warning
+dotnet_code_quality.CA1062 = false            # null checks enforced by NRT annotations instead
+dotnet_code_quality.CA2007.severity = none    # no ConfigureAwait required
+dotnet_diagnostic.CA1848.severity = suggestion # LoggerMessage source-gen optional
+dotnet_diagnostic.CA1515.severity = suggestion # public types in libs are intentional
+
+# Naming
+dotnet_naming_rule.private_field_underscore.symbols = private_field_symbols
+dotnet_naming_rule.private_field_underscore.style = underscore_prefix
+dotnet_naming_rule.private_field_underscore.severity = suggestion
+dotnet_naming_symbols.private_field_symbols.applicable_kinds = field
+dotnet_naming_symbols.private_field_symbols.applicable_accessibilities = private
+dotnet_naming_style.underscore_prefix.capitalization = camel_case
+dotnet_naming_style.underscore_prefix.required_prefix = _
+
+[*.{csproj,props,targets}]
+charset = utf-8-bom

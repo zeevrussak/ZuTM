@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>ZuTM.Core</RootNamespace>
+    <AssemblyName>ZuTM.Core</AssemblyName>
+    <Description>Core domain model for ZuTM: UTM .utm bundle compatibility, property lists, QEMU command line, QMP control.</Description>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>

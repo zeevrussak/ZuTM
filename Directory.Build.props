@@ -1,0 +1,40 @@
+<Project>
+  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — see LICENSE.TXT -->
+
+  <PropertyGroup>
+    <Authors>Ze'ev Russak</Authors>
+    <Company>Ze'ev Russak</Company>
+    <Copyright>© 2026 Ze'ev Russak — ZuTM Attribution License</Copyright>
+    <Product>ZuTM</Product>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix></VersionSuffix>
+    <RepositoryUrl>https://github.com/zutm/ZuTM</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/zutm/ZuTM</PackageProjectUrl>
+    <PackageLicenseFile>LICENSE.TXT</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <NeutralLanguage>en-US</NeutralLanguage>
+
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+    <ManagedUnsafeVirtualizationAttribute>false</ManagedUnsafeVirtualizationAttribute>
+
+    <!-- Deterministic, reproducible outputs -->
+    <Deterministic>true</Deterministic>
+    <!-- PlistDictionary mirrors the property-list vocabulary; suffix is intentional. -->
+    <NoWarn>$(NoWarn);CA1711</NoWarn>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!-- Ensure LICENSE/README travel with any packed nupkg -->
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)LICENSE.TXT" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
