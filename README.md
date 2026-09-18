@@ -1,6 +1,6 @@
 # ZuTM
 
-**ZuTM** is a Windows 11 (x64 & ARM64) virtualization app in the spirit of
+**ZuTM** — spoken letter-by-letter: "zee you tee em" (Z-U-T-M) — is a Windows 11 (x64 & ARM64) virtualization app in the spirit of
 [UTM for macOS](https://github.com/utmapp/UTM) — QEMU-backed, hardware
 accelerated, and **file-compatible with UTM**: VMs created in one can be
 opened in the other.
@@ -53,7 +53,7 @@ Prereqs: **.NET 10 SDK** (LTS), Windows App SDK workload (VS or
 --global wix`).
 
 ```powershell
-git clone https://github.com/zutm/ZuTM
+git clone https://github.com/zeevrussak/ZuTM
 cd ZuTM
 dotnet build ZuTM.slnx -c Release -p:Platform=x64   # or ARM64
 dotnet test  ZuTM.slnx -c Release                   # unit tests

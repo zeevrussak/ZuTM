@@ -8,9 +8,9 @@
     <Product>ZuTM</Product>
     <VersionPrefix>0.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
-    <RepositoryUrl>https://github.com/zutm/ZuTM</RepositoryUrl>
+    <RepositoryUrl>https://github.com/zeevrussak/ZuTM</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://github.com/zutm/ZuTM</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/zeevrussak/ZuTM</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.TXT</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <NeutralLanguage>en-US</NeutralLanguage>

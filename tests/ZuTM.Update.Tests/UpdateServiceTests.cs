@@ -51,7 +51,7 @@ public class UpdateCheckerTests
     {
         var feed = new GitHubReleaseFeed(
             new HttpClient(MockHttpMessageHandler.WithReleaseJson(ReleaseJson)),
-            "zutm/ZuTM");
+            "zeevrussak/ZuTM");
         var checker = new UpdateChecker(feed);
 
         var result = await checker.CheckAsync(SemanticVersion.Parse("0.1.0"));
@@ -68,7 +68,7 @@ public class UpdateCheckerTests
     {
         var feed = new GitHubReleaseFeed(
             new HttpClient(MockHttpMessageHandler.WithReleaseJson(ReleaseJson)),
-            "zutm/ZuTM");
+            "zeevrussak/ZuTM");
 
         var result = await new UpdateChecker(feed).CheckAsync(SemanticVersion.Parse("0.2.0"));
 
@@ -81,7 +81,7 @@ public class UpdateCheckerTests
     {
         var feed = new GitHubReleaseFeed(
             new HttpClient(MockHttpMessageHandler.NotFound()),
-            "zutm/ZuTM");
+            "zeevrussak/ZuTM");
 
         var result = await new UpdateChecker(feed).CheckAsync(SemanticVersion.Parse("0.1.0"));
 
@@ -94,7 +94,7 @@ public class UpdateCheckerTests
         var json = """{ "tag_name": "not-a-version", "assets": [] }""";
         var feed = new GitHubReleaseFeed(
             new HttpClient(MockHttpMessageHandler.WithReleaseJson(json)),
-            "zutm/ZuTM");
+            "zeevrussak/ZuTM");
 
         var result = await new UpdateChecker(feed).CheckAsync(SemanticVersion.Parse("0.1.0"));
 
@@ -109,7 +109,7 @@ public class UpdateCheckerTests
             """;
         var feed = new GitHubReleaseFeed(
             new HttpClient(MockHttpMessageHandler.WithReleaseJson(json)),
-            "zutm/ZuTM");
+            "zeevrussak/ZuTM");
 
         var result = await new UpdateChecker(feed).CheckAsync(SemanticVersion.Parse("0.1.0"));
 

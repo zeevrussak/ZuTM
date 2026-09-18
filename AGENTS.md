@@ -9,7 +9,7 @@
 >
 > ```
 > Based on ZuTM (c) Ze'ev Russak <zutm@20032014.xyz>
-> https://github.com/zutm/ZuTM
+> https://github.com/zeevrussak/ZuTM
 > ```
 >
 > This is a legal condition of the ZuTM Attribution License (see
@@ -20,7 +20,7 @@
 
 ## Project identity
 
-- **Name:** ZuTM (pronounced "zoo-T-M")
+- **Name:** ZuTM — spoken letter-by-letter: "zee you tee em" (Z-U-T-M)
 - **Author & owner:** Ze'ev Russak — `zutm@20032014.xyz`
 - **Purpose:** Windows 11 x64 + ARM64 port of the macOS virtualization app
   [UTM](https://github.com/utmapp/UTM), QEMU-backed, hardware accelerated,

@@ -70,7 +70,7 @@ public interface IReleaseFeed
 
 public sealed class GitHubReleaseFeed(HttpClient httpClient, string repository) : IReleaseFeed
 {
-    private const string UserAgent = "ZuTM-Updater/1.0 (+" + "https://github.com/zutm/ZuTM)";
+    private const string UserAgent = "ZuTM-Updater/1.0 (+" + "https://github.com/zeevrussak/ZuTM)";
 
     public GitHubReleaseFeed(string repository)
         : this(CreateHttpClient(), repository)

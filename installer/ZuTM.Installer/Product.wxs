@@ -29,7 +29,7 @@
 
     <!-- Icon (fallback to nothing when Assets not harvested; CI injects) -->
     <Property Id="ARPNOREPAIR" Value="0" />
-    <Property Id="ARPHELPLINK" Value="https://github.com/zutm/ZuTM" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/zeevrussak/ZuTM" />
     <Property Id="ARPPRODUCTICON" Value="ZutmIcon" />
 
     <Launch Condition="Installed OR (VersionNT &gt;= 602)" Message="ZuTM requires Windows 11 or later." />

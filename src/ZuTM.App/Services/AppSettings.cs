@@ -19,7 +19,7 @@ public sealed record AppSettings
 
     /// <summary>Repository checked for online updates.</summary>
     [JsonPropertyName("updateRepository")]
-    public string UpdateRepository { get; init; } = "zutm/ZuTM";
+    public string UpdateRepository { get; init; } = "zeevrussak/ZuTM";
 
     /// <summary>Automatically check for updates at startup (weekly cadence).</summary>
     [JsonPropertyName("checkForUpdates")]

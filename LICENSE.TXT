@@ -34,7 +34,7 @@ Author and copyright holder:
    All Copies and Derived Works MUST give prominent credit to the author:
 
        ZuTM (c) Ze'ev Russak <zutm@20032014.xyz>
-       https://github.com/zutm/ZuTM   (or the current official project URL)
+       https://github.com/zeevrussak/ZuTM   (or the current official project URL)
 
    Sufficient credit includes, at minimum, ALL of the following:
 
