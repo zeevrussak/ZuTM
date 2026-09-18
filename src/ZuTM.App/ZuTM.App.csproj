@@ -33,6 +33,13 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
   </ItemGroup>
 
+  <!-- Bundle QEMU + SPICE runtimes when they have been fetched (scripts/fetch-qemu.ps1). -->
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\..\..\runtimes')">
+    <Content Include="$(MSBuildProjectDirectory)\..\..\runtimes\**\*"
+             CopyToOutputDirectory="PreserveNewest"
+             Link="runtimes\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\ZuTM.Core\ZuTM.Core.csproj" />
     <ProjectReference Include="..\ZuTM.Spice\ZuTM.Spice.csproj" />

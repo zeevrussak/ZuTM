@@ -29,9 +29,22 @@ opened in the other.
 
 ## Status
 
-`v0.1.0` — foundation milestone: core library (plist, UTM bundles, QEMU
-command-line builder, QMP client, update client), WinUI 3 shell, test
-suites, installer, CI. See [docs/architecture.md](docs/architecture.md).
+v0.1.0 foundation milestone — shipped and verified in-repo:
+
+- **Core** (93 unit tests): plist engine (XML + bplist00), UTM v4 config
+  model with lossless round-trip, `.utm` bundle I/O, QEMU command-line
+  builder (WHPX/TCG, drives, NAT+hostfwd, SPICE+vdagent, QMP, UEFI), QMP
+  client, VM process lifecycle.
+- **Update client** (41 unit tests): strict semver, GitHub Releases feed,
+  SHA-256-verified download, msiexec hand-off.
+- **WinUI 3 app**: VM list/detail, new-VM wizard, settings + updates UI.
+- **E2E suite** (`ZUTM_E2E=1`): real-QEMU QMP lifecycle, on-disk bundle
+  round-trip.
+- **MSI** (`scripts/build-installer.ps1`): x64 + ARM64 WiX installers with
+  in-place major upgrades; CI publishes GitHub Releases the app updates
+  from.
+
+See [docs/architecture.md](docs/architecture.md).
 
 ## Building
 
@@ -42,8 +55,8 @@ Prereqs: **.NET 10 SDK** (LTS), Windows App SDK workload (VS or
 ```powershell
 git clone https://github.com/zutm/ZuTM
 cd ZuTM
-dotnet build ZuTM.sln -c Release          # both x64 and arm64
-dotnet test  ZuTM.sln -c Release          # unit tests
+dotnet build ZuTM.slnx -c Release -p:Platform=x64   # or ARM64
+dotnet test  ZuTM.slnx -c Release                   # unit tests
 scripts/fetch-qemu.ps1                    # download QEMU runtime (optional)
 ```
 

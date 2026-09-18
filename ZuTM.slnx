@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ZuTM.App/ZuTM.App.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/ZuTM.Core/ZuTM.Core.csproj" />
+    <Project Path="src/ZuTM.Spice/ZuTM.Spice.csproj" />
+    <Project Path="src/ZuTM.Update/ZuTM.Update.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ZuTM.Core.Tests/ZuTM.Core.Tests.csproj" />
+    <Project Path="tests/ZuTM.E2E/ZuTM.E2E.csproj" />
+    <Project Path="tests/ZuTM.Update.Tests/ZuTM.Update.Tests.csproj" />
+  </Folder>
+</Solution>

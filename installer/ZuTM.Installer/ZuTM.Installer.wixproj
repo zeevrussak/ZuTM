@@ -1,0 +1,26 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+
+  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+       Requires -p:PublishDir to point at the dotnet publish output (see
+       scripts/build-installer.ps1). Heat harvests that folder into the
+       HarvestedComponents group inside INSTALLFOLDER. -->
+
+  <PropertyGroup>
+    <OutputName>ZuTM-$(Platform)</OutputName>
+    <InstallerVersion Condition="'$(InstallerVersion)' == ''">0.1.0</InstallerVersion>
+    <DefineConstants>Version=$(InstallerVersion);PublishDir=$(PublishDir)</DefineConstants>
+    <!-- HEAT5149 (heat deprecation notice on the v6 line) is informational. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Heat" />
+    <HarvestDirectory Include="$(PublishDir)">
+      <ComponentGroupName>HarvestedComponents</ComponentGroupName>
+      <DirectoryRefId>INSTALLFOLDER</DirectoryRefId>
+      <PreprocessorVariable>var.PublishDir</PreprocessorVariable>
+      <GenerateGuidsNow>true</GenerateGuidsNow>
+    </HarvestDirectory>
+  </ItemGroup>
+
+</Project>

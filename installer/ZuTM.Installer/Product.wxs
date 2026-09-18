@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+  MSI package: per-machine install, major upgrades in place, clean uninstall.
+  Built per-architecture by scripts/build-installer.ps1:
+    ZuTM-x64.msi / ZuTM-arm64.msi   (asset names matched by the update client)
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="ZuTM"
+      Manufacturer="Ze'ev Russak"
+      Version="$(var.Version)"
+      UpgradeCode="7C2B36B0-9E1F-4D9A-92A4-1E9F0C4D2A11"
+      Language="1033"
+      Codepage="1252"
+      Scope="perMachine">
+
+    <SummaryInformation
+        Description="ZuTM — Virtual machines for Windows (UTM-compatible). Installer and updates © 2026 Ze'ev Russak."
+        Manufacturer="Ze'ev Russak" />
+
+    <!-- Major upgrade: replaces any older ZuTM in one pass (online updates rely on this). -->
+    <MajorUpgrade
+        AllowDowngrades="no"
+        AllowSameVersionUpgrades="yes"
+        DowngradeErrorMessage="A newer version of ZuTM is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Icon (fallback to nothing when Assets not harvested; CI injects) -->
+    <Property Id="ARPNOREPAIR" Value="0" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/zutm/ZuTM" />
+    <Property Id="ARPPRODUCTICON" Value="ZutmIcon" />
+
+    <Launch Condition="Installed OR (VersionNT &gt;= 602)" Message="ZuTM requires Windows 11 or later." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="ZuTM" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="ZuTM" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="ZuTM" Level="1" AllowAbsent="no">
+      <Feature Id="Application" Title="ZuTM application" Level="1">
+        <ComponentGroupRef Id="ProductComponents" />
+      </Feature>
+      <Feature Id="Shortcuts" Title="Start menu shortcut" Level="1">
+        <ComponentRef Id="ApplicationShortcut" />
+      </Feature>
+    </Feature>
+
+    <!-- App core: the published, self-contained WinUI app, harvested by
+         scripts/build-installer.ps1 (wix heat → Harvest.wxs, group
+         HarvestedComponents). Building the MSI therefore goes through the
+         script or CI, which run publish + heat first. -->
+    <ComponentGroup Id="ProductComponents">
+      <ComponentGroupRef Id="HarvestedComponents" />
+    </ComponentGroup>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="8D0C58B2-4D3F-49F0-9F84-0D6F2E9A5C21">
+        <Shortcut
+            Id="ZutmStartMenuShortcut"
+            Name="ZuTM"
+            Description="Virtual machines for Windows — ZuTM (c) Ze'ev Russak"
+            Target="[INSTALLFOLDER]ZuTM.exe"
+            WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\ZuTM" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+  </Package>
+</Wix>

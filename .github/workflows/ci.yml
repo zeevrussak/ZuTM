@@ -1,0 +1,164 @@
+# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write   # releases job attaches installers
+
+jobs:
+  test:
+    name: Unit tests (${{ matrix.configuration }})
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build solution
+        run: dotnet build ZuTM.slnx -c ${{ matrix.configuration }} -p:Platform=x64
+
+      - name: Run unit tests (Core)
+        run: dotnet test tests/ZuTM.Core.Tests/ZuTM.Core.Tests.csproj -c ${{ matrix.configuration }} --no-build --logger trx
+
+      - name: Run unit tests (Update + Spice)
+        run: dotnet test tests/ZuTM.Update.Tests/ZuTM.Update.Tests.csproj -c ${{ matrix.configuration }} --logger trx
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trx-${{ matrix.configuration }}
+          path: '**/*.trx'
+
+  e2e:
+    name: End-to-end (real QEMU)
+    runs-on: windows-latest
+    env:
+      ZUTM_E2E: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Fetch QEMU runtime
+        shell: pwsh
+        run: ./scripts/fetch-qemu.ps1
+
+      - name: Run E2E suite
+        run: dotnet test tests/ZuTM.E2E/ZuTM.E2E.csproj -c Release --logger trx
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trx-e2e
+          path: '**/*.trx'
+
+  installer-x64:
+    name: MSI (x64)
+    runs-on: windows-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install WiX v6
+        run: dotnet tool install --global wix
+
+      - name: Fetch QEMU runtime (bundled)
+        shell: pwsh
+        run: ./scripts/fetch-qemu.ps1
+
+      - name: Build x64 MSI
+        shell: pwsh
+        run: ./scripts/build-installer.ps1 -Architecture x64
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZuTM-x64
+          path: artifacts/ZuTM-x64.msi
+
+  installer-arm64:
+    name: MSI (ARM64)
+    runs-on: windows-11-arm
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install WiX v6
+        run: dotnet tool install --global wix
+
+      - name: Fetch QEMU runtime (x64 build; ARM64-native pending upstream)
+        shell: pwsh
+        run: ./scripts/fetch-qemu.ps1
+
+      - name: Build ARM64 MSI
+        shell: pwsh
+        run: ./scripts/build-installer.ps1 -Architecture arm64
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZuTM-arm64
+          path: artifacts/ZuTM-arm64.msi
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    needs: [e2e, installer-x64, installer-arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download installers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: 'ZuTM-*'
+          merge-multiple: true
+          path: artifacts
+
+      - name: Compute SHA-256 manifest
+        shell: pwsh
+        run: |
+          $lines = Get-ChildItem artifacts/*.msi | ForEach-Object {
+            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$h  $($_.Name)"
+          }
+          $lines | Set-Content artifacts/SHA256SUMS.txt
+          $lines | Write-Host
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/ZuTM-x64.msi
+            artifacts/ZuTM-arm64.msi
+            artifacts/SHA256SUMS.txt
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
