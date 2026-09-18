@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+  Native Windows 11 theming: default Fluent resources, light/dark/system follow.
+-->
+<Application
+    x:Class="ZuTM.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+      </ResourceDictionary.MergedDictionaries>
+
+      <x:Double x:Key="NavPaneWidth">320</x:Double>
+      <Thickness x:Key="SectionHeaderMargin">0,20,0,8</Thickness>
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

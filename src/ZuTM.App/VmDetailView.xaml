@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License. -->
+<UserControl
+    x:Class="ZuTM.App.VmDetailView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ZuTM.App"
+    xmlns:vm="using:ZuTM.App.ViewModels">
+
+  <StackPanel Spacing="4">
+    <!-- Empty state -->
+    <StackPanel Spacing="12" Padding="0,48,0,48" HorizontalAlignment="Center"
+                Visibility="{x:Bind local:Converters.ToCollapsed(HasVm), Mode=OneWay}">
+      <FontIcon Glyph="&#xE968;" FontSize="40" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+      <TextBlock Text="Select or create a virtual machine" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
+    </StackPanel>
+
+    <!-- Detail -->
+    <StackPanel Spacing="8" Visibility="{x:Bind local:Converters.ToVisibility(HasVm), Mode=OneWay}">
+      <Grid ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0" Text="{x:Bind Vm.Name, Mode=OneWay}" Style="{StaticResource TitleTextBlockStyle}" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <Button Content="Start" Style="{StaticResource AccentButtonStyle}" IsEnabled="{x:Bind Vm.CanStart, Mode=OneWay}" Click="OnStartClick" />
+          <Button Content="Stop" IsEnabled="{x:Bind Vm.CanStop, Mode=OneWay}" Click="OnStopClick" />
+        </StackPanel>
+      </Grid>
+
+      <InfoBar IsOpen="{x:Bind Vm.HasError, Mode=OneWay}" Severity="Error" Message="{x:Bind Vm.Error, Mode=OneWay}" Margin="0,4,0,8" />
+
+      <TextBlock Text="System" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
+      <local:SettingsRow Label="Architecture" Value="{x:Bind Vm.Architecture, Mode=OneWay}" />
+      <local:SettingsRow Label="Machine" Value="{x:Bind Vm.Bundle.Configuration.System.Target, Mode=OneWay}" />
+      <local:SettingsRow Label="Memory" Value="{x:Bind MemoryText, Mode=OneWay}" />
+      <local:SettingsRow Label="Virtual CPUs" Value="{x:Bind CpuText, Mode=OneWay}" />
+      <local:SettingsRow Label="Boot" Value="{x:Bind BootText, Mode=OneWay}" />
+
+      <TextBlock Text="Drives" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
+      <ItemsControl ItemsSource="{x:Bind DriveRows, Mode=OneWay}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:DetailRow">
+            <local:SettingsRow Label="{x:Bind Label}" Value="{x:Bind Value}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <TextBlock Text="Display" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
+      <local:SettingsRow Label="Graphics" Value="{x:Bind DisplayText, Mode=OneWay}" />
+
+      <TextBlock Text="Network" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
+      <ItemsControl ItemsSource="{x:Bind NetworkRows, Mode=OneWay}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:DetailRow">
+            <local:SettingsRow Label="{x:Bind Label}" Value="{x:Bind Value}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <TextBlock Text="Notes" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
+      <TextBlock Text="{x:Bind Vm.Bundle.Configuration.Information.Notes, Mode=OneWay}"
+                 Style="{StaticResource BodyTextBlockStyle}" IsTextSelectionEnabled="True"
+                 TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

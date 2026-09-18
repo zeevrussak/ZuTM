@@ -38,6 +38,15 @@ public sealed class UtmBundle
         DataDirectory = dataDirectory;
     }
 
+    /// <summary>Creates a wrapper for a new bundle directory (created on first Save).</summary>
+    public static UtmBundle CreateNew(string bundlePath, UtmConfiguration configuration)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(bundlePath);
+        ArgumentNullException.ThrowIfNull(configuration);
+        var fullPath = Path.GetFullPath(bundlePath);
+        return new UtmBundle(fullPath, configuration, Path.Combine(fullPath, UtmBundleFiles.DataDirectory));
+    }
+
     public string Name => Path.GetFileName(BundlePath.TrimEnd(Path.DirectorySeparatorChar))[..^UtmBundleFiles.BundleExtension.Length];
 
     public Guid Id => Configuration.Information.Uuid;

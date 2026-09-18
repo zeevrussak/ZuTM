@@ -1,0 +1,321 @@
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+
+using System.Collections.ObjectModel;
+using ZuTM.App.Mvvm;
+using ZuTM.Core.Qemu;
+using ZuTM.Core.Utm;
+using ZuTM.Spice;
+
+namespace ZuTM.App.Services;
+
+public enum VmStatus
+{
+    Stopped,
+    Starting,
+    Running,
+    Stopping,
+}
+
+/// <summary>UI-facing wrapper around one .utm bundle and its running process.</summary>
+public sealed class VmItemViewModel : ObservableObject, IDisposable
+{
+    private readonly VmLibraryService _owner;
+    private VmStatus _status;
+    private string? _error;
+
+    internal VmItemViewModel(VmLibraryService owner, UtmBundle bundle)
+    {
+        _owner = owner;
+        Bundle = bundle;
+    }
+
+    public UtmBundle Bundle { get; }
+
+    public Guid Id => Bundle.Id;
+
+    public string Name => Bundle.Configuration.Information.Name;
+
+    public string Architecture => Bundle.Configuration.System.Architecture;
+
+    public int MemoryMib => Bundle.Configuration.System.MemorySizeMib;
+
+    public string StatusText => Status switch
+    {
+        VmStatus.Running => "Running",
+        VmStatus.Starting => "Starting…",
+        VmStatus.Stopping => "Stopping…",
+        _ => "Stopped",
+    };
+
+    public string? Error
+    {
+        get => _error;
+        internal set
+        {
+            if (SetProperty(ref _error, value))
+            {
+                OnPropertyChanged(nameof(HasError));
+            }
+        }
+    }
+
+    public bool HasError => Error is not null;
+
+    public VmStatus Status
+    {
+        get => _status;
+        internal set
+        {
+            if (SetProperty(ref _status, value))
+            {
+                OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(CanStart));
+                OnPropertyChanged(nameof(CanStop));
+            }
+        }
+    }
+
+    public bool CanStart => Status is VmStatus.Stopped;
+    public bool CanStop => Status is VmStatus.Running;
+
+    internal async Task SetProcessAsync(QemuVmProcess process)
+    {
+        Status = VmStatus.Running;
+        Error = null;
+        Process = process;
+        process.Exited += (_, code) =>
+        {
+            Process = null;
+            Status = VmStatus.Stopped;
+            if (code != 0)
+            {
+                _ = _owner.DispatchAsync(() =>
+                {
+                    Error = $"QEMU exited with code {code}. See the VM's debug log (QEMU ▸ Debug Log) for details.";
+                });
+            }
+        };
+
+        Bundle.State = Bundle.State with { LastStartedUtc = DateTimeOffset.UtcNow };
+        await _owner.RunUiSafeAsync(() => Bundle.Save());
+    }
+
+    internal void ClearProcess()
+    {
+        Process = null;
+        Status = VmStatus.Stopped;
+    }
+
+    internal QemuVmProcess? Process { get; private set; }
+
+    public void Dispose() => Process?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+}
+
+/// <summary>Scans the VM folder, starts/stops VMs, owns runtimes and launchers.</summary>
+public sealed class VmLibraryService : IDisposable
+{
+    private readonly Func<Func<Task>, Task> _uiDispatcher;
+
+    public AppSettings Settings { get; private set; }
+
+    public QemuRuntime? QemuRuntime { get; }
+
+    public SpiceConsoleLauncher SpiceLauncher { get; } = new();
+
+    public ObservableCollection<VmItemViewModel> VirtualMachines { get; } = [];
+
+    public string? LoadError { get; private set; }
+
+    public VmLibraryService(Func<Func<Task>, Task>? uiDispatcher = null, QemuRuntime? qemuRuntime = null)
+    {
+        _uiDispatcher = uiDispatcher ?? (work => work());
+        Settings = AppSettings.Load();
+        QemuRuntime = qemuRuntime ?? global::ZuTM.Core.Qemu.QemuRuntime.Discover();
+    }
+
+    internal Task DispatchAsync(Action action) =>
+        _uiDispatcher(() => Task.Run(action));
+
+    internal Task RunUiSafeAsync(Action action) =>
+        _uiDispatcher(() => Task.Run(action));
+
+    /// <summary>(Re)loads every .utm bundle in the VM folder.</summary>
+    public async Task ReloadAsync()
+    {
+        VirtualMachines.Clear();
+
+        List<VmItemViewModel> items = [];
+        var loadError = (string?)null;
+        await Task.Run(() =>
+        {
+            Directory.CreateDirectory(Settings.VmFolder);
+            foreach (var path in UtmBundle.FindBundles(Settings.VmFolder))
+            {
+                try
+                {
+                    items.Add(new VmItemViewModel(this, UtmBundle.Load(path)));
+                }
+                catch (Exception ex) when (ex is UtmConfigurationException or FileNotFoundException or FormatException)
+                {
+                    loadError ??= $"{Path.GetFileName(path)}: {ex.Message}";
+                }
+            }
+        });
+
+        foreach (var item in items.OrderBy(i => i.Name, StringComparer.CurrentCulture))
+        {
+            VirtualMachines.Add(item);
+        }
+
+        LoadError = loadError;
+    }
+
+    /// <summary>Starts a VM: builds the QEMU plan, launches the process, opens the SPICE console.</summary>
+    public async Task StartAsync(VmItemViewModel vm)
+    {
+        ArgumentNullException.ThrowIfNull(vm);
+        if (!CanStartVm(vm, out var reason))
+        {
+            vm.Error = reason;
+            return;
+        }
+
+        vm.Status = VmStatus.Starting;
+        vm.Error = null;
+        try
+        {
+            var runtime = QemuRuntime!;
+            var configuration = vm.Bundle.Configuration;
+            var serialCount = configuration.Serials.Count;
+            var ports = PortAllocator.AllocateForLaunch(serialCount);
+
+            string? efiVarsPath = null;
+            if (configuration.Qemu.HasUefiBoot)
+            {
+                efiVarsPath = Path.Combine(vm.Bundle.DataDirectory, UtmBundleFiles.EfiVariables);
+                if (!File.Exists(efiVarsPath))
+                {
+                    // 1 MiB blank pflash: QEMU initializes UEFI variables on first boot.
+                    await File.WriteAllBytesAsync(efiVarsPath, new byte[1024 * 1024]);
+                }
+            }
+
+            string? logPath = configuration.Qemu.HasDebugLog
+                ? Path.Combine(vm.Bundle.DataDirectory, UtmBundleFiles.DebugLog)
+                : null;
+
+            var plan = new QemuCommandLineBuilder(
+                configuration,
+                runtime,
+                ports,
+                vm.Bundle.ResolveDriveImagePath,
+                efiVarsPath: efiVarsPath).Build();
+
+            var process = await QemuVmProcess.StartAsync(plan, logPath);
+            await vm.SetProcessAsync(process);
+
+            if (configuration.Displays.Count > 0)
+            {
+                SpiceLauncher.Start("127.0.0.1", ports.SpicePort, new SpiceConsoleOptions { FullScreen = false });
+            }
+        }
+        catch (Exception ex)
+        {
+            vm.ClearProcess();
+            vm.Error = ex.Message;
+        }
+    }
+
+    /// <summary>Graceful stop: ACPI power-down with escalation to terminate.</summary>
+    public async Task StopAsync(VmItemViewModel vm)
+    {
+        if (vm.Process is not { } process)
+        {
+            return;
+        }
+
+        vm.Status = VmStatus.Stopping;
+        await process.StopAsync(TimeSpan.FromSeconds(30));
+        vm.ClearProcess();
+        vm.Status = VmStatus.Stopped;
+    }
+
+    public bool CanStartVm(VmItemViewModel vm, out string? reason)
+    {
+        if (QemuRuntime is null)
+        {
+            reason = "QEMU runtime not found. Run scripts/fetch-qemu.ps1 or reinstall ZuTM.";
+            return false;
+        }
+
+        if (vm.Status != VmStatus.Stopped)
+        {
+            reason = "The VM is not stopped.";
+            return false;
+        }
+
+        reason = null;
+        return true;
+    }
+
+    /// <summary>Creates a new empty bundle on disk and returns its wrapper.</summary>
+    public async Task<VmItemViewModel> CreateAsync(UtmConfiguration configuration)
+    {
+        Directory.CreateDirectory(Settings.VmFolder);
+        var safeName = string.Join("_", configuration.Information.Name.Split(Path.GetInvalidFileNameChars()));
+        var bundlePath = Path.Combine(Settings.VmFolder, safeName + ".utm");
+
+        var index = 1;
+        while (Directory.Exists(bundlePath))
+        {
+            bundlePath = Path.Combine(Settings.VmFolder, $"{safeName}-{index++}.utm");
+        }
+
+        var bundle = UtmBundle.CreateNew(bundlePath, configuration);
+        await Task.Run(() => bundle.Save());
+
+        var vm = new VmItemViewModel(this, bundle);
+        VirtualMachines.Add(vm);
+        return vm;
+    }
+
+    /// <summary>Creates a blank QCOW2 disk via qemu-img.</summary>
+    public void CreateDiskImage(string path, long sizeMebiBytes)
+    {
+        var qemuImg = QemuRuntime is null ? null : Path.Combine(QemuRuntime.BinDirectory, "qemu-img.exe");
+        if (qemuImg is null || !File.Exists(qemuImg))
+        {
+            throw new FileNotFoundException("qemu-img.exe not found in the QEMU runtime.");
+        }
+
+        var result = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+            qemuImg,
+            $"create -f qcow2 \"{path}\" {sizeMebiBytes}M")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        });
+        var stderr = result?.StandardError.ReadToEnd();
+        result?.WaitForExit(30_000);
+        if (result is null || result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"qemu-img failed: {stderr}");
+        }
+    }
+
+    public void SaveSettings(AppSettings settings)
+    {
+        Settings = settings;
+        settings.Save();
+    }
+
+    public void Dispose()
+    {
+        foreach (var vm in VirtualMachines)
+        {
+            vm.Dispose();
+        }
+    }
+}

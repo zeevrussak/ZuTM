@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License. -->
+<ContentDialog
+    x:Class="ZuTM.App.NewVmDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="New Virtual Machine"
+    PrimaryButtonText="Create"
+    SecondaryButtonText="Cancel"
+    DefaultButton="Primary">
+
+  <StackPanel Spacing="12" MinWidth="420">
+    <TextBox x:Name="NameBox" Header="Name" PlaceholderText="My VM" />
+
+    <ComboBox x:Name="ArchitectureBox" Header="Architecture" SelectedIndex="0" MinWidth="200">
+      <ComboBoxItem Content="x86_64 (PC)" Tag="x86_64" />
+      <ComboBoxItem Content="aarch64 (ARM)" Tag="aarch64" />
+    </ComboBox>
+
+    <ComboBox x:Name="TargetBox" Header="Machine" SelectedIndex="0" MinWidth="200">
+      <ComboBoxItem Content="q35 (modern PC)" Tag="q35" />
+      <ComboBoxItem Content="virt (ARM)" Tag="virt" />
+    </ComboBox>
+
+    <NumberBox x:Name="MemoryBox" Header="Memory (MiB)" Value="2048" Minimum="128" Maximum="131072" SmallChange="512" LargeChange="1024" SpinButtonPlacementMode="Compact" />
+
+    <NumberBox x:Name="CpuBox" Header="vCPUs (0 = match host)" Value="2" Minimum="0" Maximum="64" SpinButtonPlacementMode="Compact" />
+
+    <NumberBox x:Name="DiskBox" Header="Disk size (GiB, 0 = none)" Value="20" Minimum="0" Maximum="2048" SpinButtonPlacementMode="Compact" />
+
+    <CheckBox x:Name="UefiBox" Content="UEFI boot" IsChecked="True" />
+
+    <InfoBar x:Name="CreateInfoBar" IsOpen="False" Severity="Error" />
+  </StackPanel>
+</ContentDialog>
