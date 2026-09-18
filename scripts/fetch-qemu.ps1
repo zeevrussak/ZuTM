@@ -39,9 +39,12 @@ $downloadPath = Join-Path $env:TEMP $fileName
 Write-Host "Downloading $InstallerUrl" -ForegroundColor Cyan
 Invoke-WebRequest $InstallerUrl -OutFile $downloadPath
 
-Write-Host 'Installing silently (InnoSetup)…' -ForegroundColor Cyan
+Write-Host 'Installing silently (InnoSetup, per-user — no elevation)…' -ForegroundColor Cyan
 $installDir = Join-Path $targetDir 'extracted'
-$process = Start-Process -FilePath $downloadPath -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=`"$installDir`"" -Wait -PassThru
+# /CURRENTUSER avoids the UAC prompt a per-machine install would raise;
+# CI shells are non-interactive, so an elevation request would hang forever.
+$argumentList = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /DIR=`"$installDir`""
+$process = Start-Process -FilePath $downloadPath -ArgumentList $argumentList -Wait -PassThru
 if ($process.ExitCode -ne 0) { throw "QEMU installer exited with $($process.ExitCode)" }
 
 # Normalize to runtimes/qemu/{bin,share}
