@@ -24,12 +24,13 @@ New-Item -ItemType Directory -Force -Path $targetDir, $DestinationRoot | Out-Nul
 
 if (-not $InstallerUrl) {
     Write-Host 'Locating newest QEMU Windows installer…' -ForegroundColor Cyan
-    $index = Invoke-RestMethod 'https://qemu.weilnetz.de/w64/'
-    $newest = ($index.links | Where-Object href -match '^qemu-w64-setup-[\d]+\.exe$' |
-        Sort-Object { [version]($_.href -replace '^qemu-w64-setup-|\.exe$', '') } -Descending |
-        Select-Object -First 1).href
+    # qemu.weilnetz.de serves a plain HTML directory index; parse it with a regex.
+    $html = (Invoke-WebRequest -Uri 'https://qemu.weilnetz.de/w64/' -UseBasicParsing).Content
+    $newest = [regex]::Matches($html, 'qemu-w64-setup-(?<ver>\d+)\.exe') |
+        Sort-Object { [long]$_.Groups['ver'].Value } -Descending |
+        Select-Object -First 1
     if (-not $newest) { throw 'Could not find a QEMU installer in the qemu.weilnetz.de index.' }
-    $InstallerUrl = "https://qemu.weilnetz.de/w64/$newest"
+    $InstallerUrl = "https://qemu.weilnetz.de/w64/$($newest.Value)"
 }
 
 $fileName = [uri]::UnescapeDataString((Split-Path -Leaf $InstallerUrl))
