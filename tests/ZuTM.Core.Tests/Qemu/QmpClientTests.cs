@@ -177,6 +177,7 @@ public sealed class FakeQmpServer : IAsyncDisposable
 
 public class QmpClientTests
 {
+
     [Fact]
     public async Task Handshake_GreetsAndEnablesCapabilities()
     {

@@ -180,6 +180,15 @@ public sealed class QmpClient : IAsyncDisposable
 
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _pumpCts.Token);
             using var registration = linked.Token.Register(() => completion.TrySetCanceled(linked.Token));
+            // The pump may have terminated before this waiter was registered
+            // (e.g. the server closed between commands); its completion fails
+            // any such orphaned waiters instead of leaving them forever.
+            // (Not disposed: the continuation tracks the pump's own lifetime.)
+            _ = _pumpTask.ContinueWith(
+                _ => completion.TrySetException(new QmpException("QMP connection closed.")),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
             var reply = await completion.Task.WaitAsync(linked.Token);
 
             if (reply.TryGetProperty("error", out var error))
