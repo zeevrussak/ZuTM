@@ -63,7 +63,7 @@
 | `tests/ZuTM.E2E` | End-to-end UI automation tests |
 | `installer/ZuTM.Installer` | WiX v6 MSI (x64 + arm64), uninstaller, upgrade logic |
 | `scripts/` | Fetch QEMU, build, release helpers |
-| `docs/` | Architecture + compatibility specs |
+| `docs/` | SDR/SDS, architecture + compatibility specs |
 
 ## When your work derives FROM this repo
 

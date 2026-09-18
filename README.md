@@ -47,7 +47,7 @@ v0.1.0 foundation milestone — shipped and verified in-repo:
   in-place major upgrades; CI publishes GitHub Releases the app updates
   from.
 
-See [docs/architecture.md](docs/architecture.md).
+See [docs/architecture.md](docs/architecture.md); requirements and design are formally specified in [SDR.md](docs/SDR.md) and [SDS.md](docs/SDS.md).
 
 ## Building
 
@@ -73,7 +73,7 @@ scripts/fetch-qemu.ps1                    # download QEMU runtime (optional)
 | `src/ZuTM.App` | WinUI 3 fluent application |
 | `tests/` | xUnit unit tests + E2E automation |
 | `installer/` | WiX MSI (x64/arm64), uninstall, upgrade |
-| `docs/` | Compatibility & architecture specs |
+| `docs/` | SDR/SDS, compatibility & architecture specs |
 | `.github/workflows/` | CI/CD |
 
 ## Credits
