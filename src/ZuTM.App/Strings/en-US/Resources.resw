@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+              <xsd:attribute name="xml:space" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter</value></resheader>
+  <data name="WindowTitle" xml:space="preserve"><value>ZuTM — Virtual Machines</value></data>
+  <data name="AppDisplayName" xml:space="preserve"><value>ZuTM</value></data>
+  <data name="NewVmButton" xml:space="preserve"><value>New VM</value></data>
+  <data name="SettingsButton" xml:space="preserve"><value>Settings</value></data>
+  <data name="RefreshButton" xml:space="preserve"><value>Refresh</value></data>
+  <data name="SearchBoxPlaceholder" xml:space="preserve"><value>Search virtual machines</value></data>
+  <data name="AboutCredit" xml:space="preserve"><value>ZuTM © 2026 Ze'ev Russak &lt;zutm@20032014.xyz&gt; — ZuTM Attribution License: copies must credit the author.</value></data>
+</root>

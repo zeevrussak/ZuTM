@@ -40,6 +40,8 @@ public sealed partial class MainWindow : Window
         DetailView.ResetRequested += async (_, vm) => await library.ResetAsync(vm);
         DetailView.CloneRequested += async (_, vm) => await CloneVmAsync(vm);
         DetailView.DeleteRequested += async (_, vm) => await DeleteVmAsync(vm);
+        DetailView.SnapshotRequested += async (_, vm) => await SnapshotVmAsync(vm);
+        DetailView.RestoreRequested += async (_, vm) => await RestoreVmAsync(vm);
 
         ViewModel.PropertyChanged += (_, e) =>
         {
@@ -98,8 +100,49 @@ public sealed partial class MainWindow : Window
         AppWindow.Resize(new SizeInt32(1180, 760));
     }
 
+    private List<VmItemViewModel> _allVms = [];
+
+    private void OnSearchChanged(object sender, Microsoft.UI.Xaml.Controls.TextChangedEventArgs e)
+    {
+        ApplyFilter();
+    }
+
+    private void ApplyFilterKeepSelection()
+    {
+        var selected = ViewModel.SelectedVm;
+        var query = SearchBox?.Text?.Trim() ?? string.Empty;
+        ViewModel.VirtualMachines.Clear();
+        foreach (var vm in _allVms
+                     .Where(vm => query.Length == 0 || vm.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(vm => vm.Name, StringComparer.CurrentCulture))
+        {
+            ViewModel.VirtualMachines.Add(vm);
+        }
+
+        if (selected is not null && ViewModel.VirtualMachines.Contains(selected))
+        {
+            ViewModel.SelectedVm = selected;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        var query = SearchBox?.Text?.Trim() ?? string.Empty;
+        ViewModel.SelectedVm = null;
+        DetailView.Vm = null;
+        ViewModel.VirtualMachines.Clear();
+        foreach (var vm in _allVms
+                     .Where(vm => query.Length == 0 || vm.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(vm => vm.Name, StringComparer.CurrentCulture))
+        {
+            ViewModel.VirtualMachines.Add(vm);
+        }
+    }
+
     private void UpdateStatus()
     {
+        _allVms = [.. ViewModel.Library.VirtualMachines];
+        ApplyFilterKeepSelection();
         var running = ViewModel.Library.RunningCount();
         StatusBarText.Text = ViewModel.VirtualMachines.Count == 0
             ? "No virtual machines yet — click “New VM” to create one."
@@ -153,6 +196,99 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             await ShowInfoAsync($"Delete failed: {ex.Message}");
+        }
+    }
+
+    private async Task SnapshotVmAsync(VmItemViewModel vm)
+    {
+        if (vm.Process?.Qmp is not { } qmp)
+        {
+            return;
+        }
+
+        var nameBox = new TextBox { PlaceholderText = "snapshot name (e.g. clean-state)" };
+        var dialog = new ContentDialog
+        {
+            Title = $"Snapshot “{vm.Name}”",
+            Content = nameBox,
+            PrimaryButtonText = "Save snapshot",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = Content.XamlRoot,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        var name = nameBox.Text.Trim().Replace(' ', '-');
+        if (name.Length == 0)
+        {
+            name = $"snap-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}";
+        }
+
+        try
+        {
+            // savevm pauses internally; surface the frozen state while it runs.
+            await qmp.SaveSnapshotAsync(name);
+            await ShowInfoAsync($"Snapshot “{name}” saved.");
+        }
+        catch (Exception ex)
+        {
+            await ShowInfoAsync($"Snapshot failed: {ex.Message}");
+        }
+    }
+
+    private async Task RestoreVmAsync(VmItemViewModel vm)
+    {
+        if (vm.Process?.Qmp is not { } qmp)
+        {
+            return;
+        }
+
+        IReadOnlyList<string> snapshots;
+        try
+        {
+            snapshots = await qmp.ListSnapshotsAsync();
+        }
+        catch (Exception ex)
+        {
+            await ShowInfoAsync($"Could not list snapshots: {ex.Message}");
+            return;
+        }
+
+        if (snapshots.Count == 0)
+        {
+            await ShowInfoAsync("This VM has no snapshots yet.");
+            return;
+        }
+
+        var combo = new ComboBox { ItemsSource = snapshots.ToList(), SelectedIndex = 0, MinWidth = 240 };
+        var dialog = new ContentDialog
+        {
+            Title = $"Restore “{vm.Name}”",
+            Content = combo,
+            PrimaryButtonText = "Restore",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = Content.XamlRoot,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary || combo.SelectedItem is not string snapshot)
+        {
+            return;
+        }
+
+        try
+        {
+            // loadvm requires the guest stopped: freeze → load → continue.
+            await qmp.PauseAsync();
+            await qmp.LoadSnapshotAsync(snapshot);
+            await qmp.ResumeAsync();
+            await ShowInfoAsync($"Snapshot “{snapshot}” restored.");
+        }
+        catch (Exception ex)
+        {
+            await ShowInfoAsync($"Restore failed: {ex.Message}");
         }
     }
 

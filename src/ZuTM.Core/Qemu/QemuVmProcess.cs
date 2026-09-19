@@ -27,6 +27,22 @@ public sealed class QemuVmProcess : IAsyncDisposable
 
     public int ExitCode => _process.HasExited ? _process.ExitCode : 0;
 
+    /// <summary>QEMU's OS process id (0 before Start or after disposal).</summary>
+    public int ProcessId
+    {
+        get
+        {
+            try
+            {
+                return _process.Id;
+            }
+            catch (InvalidOperationException)
+            {
+                return 0;
+            }
+        }
+    }
+
     /// <summary>Raised when the QEMU process exits for any reason.</summary>
     public event EventHandler<int>? Exited;
 
@@ -61,6 +77,10 @@ public sealed class QemuVmProcess : IAsyncDisposable
                 plan.ExecutablePath);
         }
 
+        // QEMU's output is ALWAYS redirected — even when unused — so QEMU
+        // never inherits OUR stdio handles (a CLI-launched QEMU holding the
+        // caller's stdout pipe would hang any parent reading it). Without a
+        // log sink the pipe is simply drained.
         var startInfo = new ProcessStartInfo
         {
             FileName = plan.ExecutablePath,
@@ -79,10 +99,12 @@ public sealed class QemuVmProcess : IAsyncDisposable
         StreamWriter? logWriter = logPath is null ? null : new StreamWriter(logPath, append: true) { AutoFlush = true };
         process.OutputDataReceived += OnProcessOutput;
         process.ErrorDataReceived += OnProcessOutput;
+
         void OnProcessOutput(object _, DataReceivedEventArgs e)
         {
             if (e.Data is not null)
             {
+                _lastStderrTail = (_lastStderrTail + Environment.NewLine + e.Data)[^Math.Min(600, _lastStderrTail.Length + Environment.NewLine.Length + e.Data.Length)..];
                 logWriter?.WriteLine(e.Data);
             }
         }
@@ -119,6 +141,8 @@ public sealed class QemuVmProcess : IAsyncDisposable
         return vm;
     }
 
+    private static string _lastStderrTail = string.Empty;
+
     private static async Task<QmpClient> ConnectQmpWithRetryAsync(int port, CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < 40; attempt++)
@@ -133,7 +157,8 @@ public sealed class QemuVmProcess : IAsyncDisposable
             }
         }
 
-        throw new TimeoutException($"QEMU did not open the QMP port {port} within 10 seconds.");
+        throw new TimeoutException(
+            $"QEMU did not open the QMP port {port} within 10 seconds. QEMU stderr tail: {_lastStderrTail}");
     }
 
     /// <summary>Graceful ACPI shutdown; escalates to hard termination after <paramref name="graceTimeout"/>.</summary>

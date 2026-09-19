@@ -64,7 +64,17 @@ public sealed record AppSettings
 
     public void Save()
     {
+        // Atomic: stage + replace so a crash mid-write never corrupts settings.
         Directory.CreateDirectory(SettingsDirectory);
-        File.WriteAllText(SettingsPath, JsonSerializer.Serialize(this, SerializerOptions));
+        var staging = SettingsPath + ".tmp";
+        File.WriteAllText(staging, JsonSerializer.Serialize(this, SerializerOptions));
+        if (File.Exists(SettingsPath))
+        {
+            File.Replace(staging, SettingsPath, destinationBackupFileName: null);
+        }
+        else
+        {
+            File.Move(staging, SettingsPath);
+        }
     }
 }

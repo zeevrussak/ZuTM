@@ -36,9 +36,13 @@
       </StackPanel>
 
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-        <Button Content="New VM" Style="{StaticResource AccentButtonStyle}" Click="OnNewVmClick" ToolTipService.ToolTip="Create a virtual machine" />
-        <Button Content="Refresh" Click="OnRefreshClick" ToolTipService.ToolTip="Rescan the VM folder" />
-        <Button Content="Settings" Click="OnSettingsClick" />
+        <TextBox x:Name="SearchBox" PlaceholderText="Search virtual machines" Width="200" TextChanged="OnSearchChanged"
+                 AutomationProperties.AutomationId="VmSearchBox" />
+        <Button Content="New VM" Style="{StaticResource AccentButtonStyle}" Click="OnNewVmClick" ToolTipService.ToolTip="Create a virtual machine"
+                AutomationProperties.AutomationId="NewVmButton" />
+        <Button Content="Refresh" Click="OnRefreshClick" ToolTipService.ToolTip="Rescan the VM folder"
+                AutomationProperties.AutomationId="RefreshButton" />
+        <Button Content="Settings" Click="OnSettingsClick" AutomationProperties.AutomationId="SettingsButton" />
       </StackPanel>
     </Grid>
 

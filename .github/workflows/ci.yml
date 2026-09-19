@@ -93,6 +93,17 @@ jobs:
         shell: pwsh
         run: ./scripts/build-installer.ps1 -Architecture x64
 
+      - name: Authenticode-sign MSI (when a certificate is configured)
+        if: env.SIGNING_CERT_PFX != '' && runner.os == 'Windows'
+        shell: pwsh
+        env:
+          SIGNING_CERT_PFX: ${{ secrets.SIGNING_CERT_PFX }}
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+        run: |
+          if (-not $env:SIGNING_CERT_PFX) { Write-Host 'no certificate configured; skipping'; exit 0 }
+          [IO.File]::WriteAllBytes("$env:TEMP\zutm.pfx", [Convert]::FromBase64String($env:SIGNING_CERT_PFX))
+          & signtool sign /fd SHA256 /f "$env:TEMP\zutm.pfx" /p "$env:SIGNING_CERT_PASSWORD" /tr http://timestamp.digicert.com /td SHA256 "artifacts\ZuTM-x64.msi"
+
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
@@ -121,6 +132,17 @@ jobs:
       - name: Build ARM64 MSI
         shell: pwsh
         run: ./scripts/build-installer.ps1 -Architecture arm64
+
+      - name: Authenticode-sign MSI (when a certificate is configured)
+        if: env.SIGNING_CERT_PFX != '' && runner.os == 'Windows'
+        shell: pwsh
+        env:
+          SIGNING_CERT_PFX: ${{ secrets.SIGNING_CERT_PFX }}
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+        run: |
+          if (-not $env:SIGNING_CERT_PFX) { Write-Host 'no certificate configured; skipping'; exit 0 }
+          [IO.File]::WriteAllBytes("$env:TEMP\zutm.pfx", [Convert]::FromBase64String($env:SIGNING_CERT_PFX))
+          & signtool sign /fd SHA256 /f "$env:TEMP\zutm.pfx" /p "$env:SIGNING_CERT_PASSWORD" /tr http://timestamp.digicert.com /td SHA256 "artifacts\ZuTM-arm64.msi"
 
       - name: Upload MSI
         uses: actions/upload-artifact@v4

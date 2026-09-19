@@ -49,13 +49,35 @@ public sealed partial class VmDetailView : UserControl
         DataContext = this;
     }
 
-    private static void OnVmChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e) =>
-        ((VmDetailView)sender).Rebuild();
+    private static void OnVmChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
+    {
+        var view = (VmDetailView)sender;
+        if (e.OldValue is VmItemViewModel previous)
+        {
+            previous.PropertyChanged -= view.OnVmPropertyChanged;
+        }
+
+        if (e.NewValue is VmItemViewModel current)
+        {
+            current.PropertyChanged += view.OnVmPropertyChanged;
+        }
+
+        view.Rebuild();
+    }
+
+    private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(VmItemViewModel.SerialPort) && Vm is not null)
+        {
+            Terminal.Endpoint = Vm.SerialPort;
+        }
+    }
 
     private void Rebuild()
     {
         NetworkRows.Clear();
         DriveRows.Clear();
+        Terminal.Endpoint = Vm?.SerialPort ?? 0;
 
         if (Vm is not { } vm)
         {
@@ -158,6 +180,36 @@ public sealed partial class VmDetailView : UserControl
         }
     }
 
+    private async void OnEditClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is null)
+        {
+            return;
+        }
+
+        var dialog = new VMConfigEditorDialog(Vm.Bundle) { XamlRoot = XamlRoot };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            Rebuild(); // fields may have changed
+        }
+    }
+
+    private async void OnSnapshotClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is not null && SnapshotRequested is not null)
+        {
+            await SnapshotRequested(this, Vm);
+        }
+    }
+
+    private async void OnRestoreClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is not null && RestoreRequested is not null)
+        {
+            await RestoreRequested(this, Vm);
+        }
+    }
+
     public event Func<object, VmItemViewModel, Task>? StartRequested;
 
     public event Func<object, VmItemViewModel, Task>? StopRequested;
@@ -171,4 +223,8 @@ public sealed partial class VmDetailView : UserControl
     public event Func<object, VmItemViewModel, Task>? CloneRequested;
 
     public event Func<object, VmItemViewModel, Task>? DeleteRequested;
+
+    public event Func<object, VmItemViewModel, Task>? SnapshotRequested;
+
+    public event Func<object, VmItemViewModel, Task>? RestoreRequested;
 }

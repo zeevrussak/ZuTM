@@ -28,11 +28,11 @@
 | FR-04 | Hard reset a VM | UTM | ✅ | QMP system_reset + Reset button with tooltip |
 | FR-05 | Delete a VM (bundle) | UTM | ✅ | Confirmation dialog (destructive default: Cancel) + guarded by stopped-state; `UtmBundle` deletion unit-tested at the path-safety layer |
 | FR-06 | Clone/duplicate a VM | UTM | ✅ | `UtmBundle.Clone` (config + payloads + fresh UUID, refuses existing targets) unit-tested; Clone button clones only stopped VMs |
-| FR-07 | Save/restore VM state (snapshots, "hibernate") | UTM | 🔜 | QEMU `savevm`/`vmstate` modeled in the bundle format (`Data\vmstate` reserved); UI + lifecycle pending |
-| FR-08 | Edit every VM configuration section in the UI | UTM | 🟡 | Full model exists (lossless); wizard covers creation; section editors are FR-60 |
+| FR-07 | Save/restore VM state (snapshots, "hibernate") | UTM | ✅ | `QmpClient` savevm/loadvm/delvm + snapshot-list parser (unit-tested); Snapshot…/Restore… dialogs; restore = pause->loadvm->cont |
+| FR-08 | Edit every VM configuration section in the UI | UTM | ✅ | `VMConfigEditorDialog`: identity/system/QEMU/display/network/sharing editors over lossless `with` transforms; unknown keys ride along |
 | FR-09 | VM library list with status | UTM | ✅ | List + status text + error badges |
 | FR-10 | VM detail view | UTM | ✅ | System/Drives/Display/Network/Notes, read-only rendering |
-| FR-11 | Sort/search the VM library | UTM | 🔜 | Straightforward once library grows |
+| FR-11 | Sort/search the VM library | UTM | ✅ | Search box filters; library sorted by name |
 | FR-12 | Custom VM icon + notes | UTM | 🟡 | Model round-trips Icon/IconCustom/Notes; icon picker UX pending |
 | FR-13 | Per-VM debug log toggle | UTM | ✅ | `QEMU.DebugLog` → `Data\debug.log`, streamed from QEMU stdout/stderr |
 
@@ -89,11 +89,11 @@
 
 | ID | Requirement | Origin | Status | Notes / why |
 |---|---|---|---|---|
-| FR-60 | Per-section config editor UI | UTM | 🔜 | The design intent for the detail pane; model+save layer complete |
+| FR-60 | Per-section config editor UI | UTM | ✅ | Delivered as `VMConfigEditorDialog` (see FR-08) |
 | FR-61 | SPICE display server per VM | UTM | ✅ | Loopback-only, ticketing disabled on localhost |
 | FR-62 | SPICE console client (remote-viewer) launch | UTM | ✅ | Bundled under `runtimes\spice` in the MSI; arg-builder unit-tested |
 | FR-63 | Dynamic resolution + clipboard via vdagent | UTM | ✅ | vdagent virtserialport wired; active when a SPICE client is attached |
-| FR-64 | In-app serial terminal tab | UTM | 🟡 | Serial exposed as TCP endpoint today (used heavily by E2E); embedded terminal control is UX work — why partial: external viewers cover it today |
+| FR-64 | In-app serial terminal tab | UTM | ✅ | `SerialConsoleControl`: attach/detach to the running VM's serial endpoint, streaming output, Enter/Send input |
 | FR-65 | Serial modes: built-in TCP / TCP client / TCP server | UTM | ✅ | Plus GDB stub and HMP monitor routing |
 | FR-66 | Headless VMs (`-display none`) | UTM | ✅ | |
 | FR-67 | USB tablet (absolute pointer) | UTM | ✅ | Always with a display |
@@ -134,9 +134,9 @@
 | FR-100 | Native Windows 11 Fluent UI (WinUI 3, Mica, system themes) | ZuTM | ✅ | UTM gives layout/feature inspiration; the look is native Windows by design |
 | FR-101 | Light/dark/system theme follow | ZuTM | ✅ | WinUI defaults |
 | FR-102 | Settings: VM folder, update policy | ZuTM | ✅ | `%APPDATA%\ZuTM\settings.json` |
-| FR-103 | First-class keyboard accessibility | ZuTM | 🟡 | WinUI base behavior; explicit narrator/high-contrast pass not audited yet |
-| FR-104 | Localization | UTM | 🔜 | All strings currently en-US inline; resource extraction first |
-| FR-105 | CLI for automation (`zutm start …`) | UTM (utmctl) | 🔜 | Core is UI-independent by construction |
+| FR-103 | First-class keyboard accessibility | ZuTM | 🟡 | AutomationIds on primary controls + tooltips; narrator/high-contrast audit still pending |
+| FR-104 | Localization | UTM | 🟡 | Resource infrastructure in place (Strings/en-US/Resources.resw); remaining strings migrate incrementally |
+| FR-105 | CLI for automation (`zutm start …`) | UTM (utmctl) | ✅ | `zutm` (src/ZuTM.Cli): list/show/start/stop/pause/resume/clone/delete; shares `VmLauncher` + `RuntimeRegistry` with the GUI; E2E incl. real start/stop |
 
 ## 10. Deployment, updates, security
 
@@ -147,7 +147,7 @@
 | FR-112 | In-place major upgrade (same or newer version) | ZuTM | ✅ | `MajorUpgrade` w/ `AllowSameVersionUpgrades` |
 | FR-113 | Online update check from GitHub Releases | ZuTM | ✅ | Weekly cadence + manual; strict semver precedence |
 | FR-114 | Update integrity (SHA-256 + size) | ZuTM | ✅ | Tamper ⇒ delete + refuse |
-| FR-115 | Authenticode code signing | ZuTM | 🔜 | Why not done: requires a purchasing decision (cert/HSM); pipeline hook ready |
+| FR-115 | Authenticode code signing | ZuTM | 🟡 | CI hook live (base64 PFX secret -> signtool, timestamped) - activates when a certificate secret is configured; cert purchase pending |
 | FR-116 | Downgrade protection | ZuTM | ✅ | MSI refuses older versions with a clear message |
 | FR-117 | Update feed is user-configurable | ZuTM | ✅ | Repo string in settings |
 | FR-118 | Loopback-only VM endpoints | ZuTM | ✅ | SPICE/QMP/serial/GA bind 127.0.0.1 only — remote exposure deliberately not offered |
@@ -161,7 +161,7 @@
 | FR-122 | Real-guest E2E (Alpine headless, serial-driven) | ZuTM | ✅ | Login → commands → verify → clean poweroff |
 | FR-123 | Real-desktop E2E (XFCE + SPICE tools, capture + control) | ZuTM | ✅ | Guest-side capture, host-driven control, in-guest verification |
 | FR-124 | Test-environment builders as scripts (no human input) | ZuTM | ✅ | `scripts/testenv/*`; unattended installs over serial |
-| FR-125 | UI automation tests | ZuTM | 🔜 | WinAppDriver/Appium shell planned |
+| FR-125 | UI automation tests | ZuTM | 🟡 | Launch/window smoke automated (ZUTM_UI_E2E=1 + ZUTM_APP_EXE); full control-level automation (Appium) still pending |
 | FR-126 | CI/CD incl. both-arch MSIs + releases | ZuTM | ✅ | GitHub Actions; releases gate on VM E2E |
 
 ## 12. Explicitly not planned (with reasons)

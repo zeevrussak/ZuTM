@@ -99,6 +99,15 @@ Design constants:
 - **Serial console** — raw TCP to `-serial tcp:…`; documented control-language decisions in AD-9.
 - **GitHub Releases API** — `releases/latest` + asset browser URLs; user-agent pinned to the project.
 
+## 4a. Cross-process control design
+
+**AD-21 - RuntimeRegistry as the GUI<->CLI contract.** Running VMs are recorded
+in %APPDATA%\ZuTMunning.json (uuid -> name/qemu pid/QMP port/SPICE port,
+atomic writes, stale-pid pruning on load) by the single shared launch path
+(`VmLauncher`), consumed by both the GUI and `zutm` for stop/pause/resume.
+This avoids a daemon: whoever starts a VM records it; any process with the
+registry can control it via loopback QMP.
+
 ## 5. Security design
 
 **AD-19 · Untrusted-input boundary at the bundle and the feed.** config.plist

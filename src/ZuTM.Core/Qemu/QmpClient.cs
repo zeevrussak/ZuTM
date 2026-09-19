@@ -322,3 +322,79 @@ public sealed class QmpClient : IAsyncDisposable
 
 /// <summary>QMP protocol or command failure.</summary>
 public sealed class QmpException(string message) : Exception(message);
+
+public static class QmpClientSnapshotExtensions
+{
+    /// <summary>Runs an HMP monitor command through QMP and returns its text output.</summary>
+    public static async Task<string> HumanCommandAsync(this QmpClient client, string command, CancellationToken cancellationToken = default)
+    {
+        var result = await client.ExecuteAsync("human-monitor-command",
+            new Dictionary<string, object?> { ["command-line"] = command },
+            cancellationToken);
+        return result.ValueKind == System.Text.Json.JsonValueKind.String
+            ? result.GetString() ?? string.Empty
+            : string.Empty;
+    }
+
+    /// <summary>Saves a full VM snapshot to the qcow2 disks + vmstate (HMP savevm).</summary>
+    public static Task SaveSnapshotAsync(this QmpClient client, string name, CancellationToken cancellationToken = default) =>
+        client.HumanCommandAsync($"savevm {name}", cancellationToken);
+
+    /// <summary>Restores a snapshot (VM must be stopped; HMP loadvm).</summary>
+    public static Task LoadSnapshotAsync(this QmpClient client, string name, CancellationToken cancellationToken = default) =>
+        client.HumanCommandAsync($"loadvm {name}", cancellationToken);
+
+    /// <summary>Deletes a snapshot from the disks (HMP delvm).</summary>
+    public static Task DeleteSnapshotAsync(this QmpClient client, string name, CancellationToken cancellationToken = default) =>
+        client.HumanCommandAsync($"delvm {name}", cancellationToken);
+
+    /// <summary>Lists snapshot names (HMP "info snapshots" — parser shared with tests).</summary>
+    public static async Task<IReadOnlyList<string>> ListSnapshotsAsync(this QmpClient client, CancellationToken cancellationToken = default)
+    {
+        var output = await client.HumanCommandAsync("info snapshots", cancellationToken);
+        return ParseSnapshotList(output);
+    }
+
+    /// <summary>
+    /// "info snapshots" output contains blocks like:
+    ///   Snapshot list (from 00000000 to ...):
+    ///   ...
+    ///       ID        TAG                 VM SIZE                DATE       VM CLOCK
+    ///       1         snap1                  4.2 MiB  2026-09-19 10:00:00   00:00:05.123
+    /// Tag is the name savevm was given; it is the token without spaces.
+    /// </summary>
+    public static IReadOnlyList<string> ParseSnapshotList(string infoSnapshotsOutput)
+    {
+        List<string> names = [];
+        foreach (var line in infoSnapshotsOutput.Split('\n'))
+        {
+            var trimmed = line.Trim('\r', ' ');
+            if (trimmed.Length == 0 || trimmed.Trim('-').Length == 0
+                || trimmed.StartsWith("ID", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("Snapshot list", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            // Data rows may carry a device column ("--  1  tag …" or "h0 1 tag …"):
+            // take the first all-numeric field; the following field is the tag.
+            var fields = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var start = fields.Length > 0 && fields[0] == "--" ? 1 : 0;
+            for (var i = start; i < fields.Length - 1; i++)
+            {
+                if (fields[i].Length > 0 && fields[i].All(char.IsDigit) && long.TryParse(fields[i], out _))
+                {
+                    var tag = fields[i + 1];
+                    if (tag != "--" && !tag.Contains(':'))
+                    {
+                        names.Add(tag);
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        return names;
+    }
+}

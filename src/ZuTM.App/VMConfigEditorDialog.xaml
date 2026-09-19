@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License. -->
+<ContentDialog
+    x:Class="ZuTM.App.VMConfigEditorDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Edit Virtual Machine"
+    PrimaryButtonText="Save"
+    SecondaryButtonText="Cancel"
+    DefaultButton="Primary">
+
+  <ScrollViewer MinWidth="520" MaxHeight="560">
+    <StackPanel Spacing="10" Padding="0,4">
+      <TextBox x:Name="NameBox" Header="Name" AutomationProperties.AutomationId="CfgName" />
+      <TextBox x:Name="NotesBox" Header="Notes" AcceptsReturn="True" Height="64" TextWrapping="Wrap" />
+
+      <TextBlock Text="System" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
+      <TextBox x:Name="ArchitectureBox" Header="Architecture (e.g. x86_64, aarch64)" />
+      <TextBox x:Name="TargetBox" Header="Machine (e.g. q35, virt)" />
+      <TextBox x:Name="CpuBox" Header="CPU model ('default' = machine default)" />
+      <NumberBox x:Name="CpuCountBox" Header="vCPUs (0 = match host)" Minimum="0" Maximum="64" SpinButtonPlacementMode="Compact" />
+      <NumberBox x:Name="MemoryBox" Header="Memory (MiB)" Minimum="128" Maximum="131072" SmallChange="512" SpinButtonPlacementMode="Compact" />
+
+      <TextBlock Text="QEMU" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
+      <ToggleSwitch x:Name="UefiToggle" Header="UEFI boot" OnContent="On" OffContent="Off" />
+      <ToggleSwitch x:Name="HypervisorToggle" Header="Hypervisor acceleration (WHPX when available)" OnContent="On" OffContent="Off" />
+      <ToggleSwitch x:Name="RtcToggle" Header="RTC local time" OnContent="On" OffContent="Off" />
+      <ToggleSwitch x:Name="DebugLogToggle" Header="Debug log (Data\debug.log)" OnContent="On" OffContent="Off" />
+
+      <TextBlock Text="Display" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
+      <TextBox x:Name="DisplayBox" Header="Graphics (e.g. virtio-gpu-pci, QXL) — empty = headless" />
+
+      <TextBlock Text="Network" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
+      <TextBox x:Name="NetworkModeBox" Header="Mode (Shared / Host / Emulated / Bridged)" />
+      <TextBox x:Name="NetworkHardwareBox" Header="NIC (e.g. virtio-net-pci, e1000)" />
+      <TextBox x:Name="MacBox" Header="MAC address" />
+
+      <TextBlock Text="Sharing" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
+      <ComboBox x:Name="SharingModeBox" Header="Folder sharing" MinWidth="220" SelectedIndex="0">
+        <ComboBoxItem Content="None" Tag="None" />
+        <ComboBoxItem Content="WebDAV (SPICE; needs spice-webdavd in guest)" Tag="WebDAV" />
+        <ComboBoxItem Content="VirtFS (limited on Windows QEMU)" Tag="VirtFS" />
+      </ComboBox>
+      <ToggleSwitch x:Name="SharingReadOnlyToggle" Header="Shared folder read-only" OnContent="On" OffContent="Off" />
+      <ToggleSwitch x:Name="ClipboardToggle" Header="Clipboard sharing (with SPICE client attached)" OnContent="On" OffContent="Off" />
+
+      <InfoBar x:Name="ErrorBar" IsOpen="False" Severity="Error" />
+    </StackPanel>
+  </ScrollViewer>
+</ContentDialog>

@@ -94,7 +94,7 @@ public sealed class VmItemViewModel : ObservableObject, IDisposable
     public bool CanClone => Status is VmStatus.Stopped;
     public bool CanDelete => Status is VmStatus.Stopped;
 
-    internal async Task SetProcessAsync(QemuVmProcess process)
+    internal async Task SetProcessAsync(QemuVmProcess process, QemuPortSet? ports = null)
     {
         Status = VmStatus.Running;
         Error = null;
@@ -102,7 +102,9 @@ public sealed class VmItemViewModel : ObservableObject, IDisposable
         process.Exited += (_, code) =>
         {
             Process = null;
+            SerialPort = 0;
             Status = VmStatus.Stopped;
+            _owner._runtimeRegistry.RecordStop(Bundle.Id.ToString("D"));
             if (code != 0)
             {
                 _ = _owner.DispatchAsync(() =>
@@ -142,6 +144,15 @@ public sealed class VmItemViewModel : ObservableObject, IDisposable
 
     internal QemuVmProcess? Process { get; private set; }
 
+    /// <summary>Serial TCP endpoint while running (0 = none) — powers the in-app terminal.</summary>
+    public int SerialPort
+    {
+        get => _serialPort;
+        internal set => SetProperty(ref _serialPort, value);
+    }
+
+    private int _serialPort;
+
     public void Dispose() => Process?.DisposeAsync().AsTask().GetAwaiter().GetResult();
 }
 
@@ -159,6 +170,8 @@ public sealed class VmLibraryService : IDisposable
     public ObservableCollection<VmItemViewModel> VirtualMachines { get; } = [];
 
     public string? LoadError { get; private set; }
+
+    internal readonly RuntimeRegistry _runtimeRegistry = new();
 
     public VmLibraryService(Func<Func<Task>, Task>? uiDispatcher = null, QemuRuntime? qemuRuntime = null)
     {
@@ -204,7 +217,7 @@ public sealed class VmLibraryService : IDisposable
         LoadError = loadError;
     }
 
-    /// <summary>Starts a VM: builds the QEMU plan, launches the process, opens the SPICE console.</summary>
+    /// <summary>Starts a VM: shared launcher (plan → QEMU → QMP → registry), opens the SPICE console, keeps a serial session for the in-app terminal.</summary>
     public async Task StartAsync(VmItemViewModel vm)
     {
         ArgumentNullException.ThrowIfNull(vm);
@@ -218,37 +231,19 @@ public sealed class VmLibraryService : IDisposable
         vm.Error = null;
         try
         {
-            var runtime = QemuRuntime!;
-            var configuration = vm.Bundle.Configuration;
-            var serialCount = configuration.Serials.Count;
-            var ports = PortAllocator.AllocateForLaunch(serialCount);
+            var launcher = new VmLauncher(QemuRuntime!, _runtimeRegistry);
+            var result = await launcher.StartAsync(vm.Bundle);
+            var process = result.Process;
+            var ports = result.Ports;
+            await vm.SetProcessAsync(process, ports);
 
-            string? efiVarsPath = null;
-            if (configuration.Qemu.HasUefiBoot)
+            // In-app serial terminal endpoint for the first serial port, if any.
+            if (ports.SerialPorts.TryGetValue(0, out var serialPort))
             {
-                efiVarsPath = Path.Combine(vm.Bundle.DataDirectory, UtmBundleFiles.EfiVariables);
-                if (!File.Exists(efiVarsPath))
-                {
-                    // 1 MiB blank pflash: QEMU initializes UEFI variables on first boot.
-                    await File.WriteAllBytesAsync(efiVarsPath, new byte[1024 * 1024]);
-                }
+                vm.SerialPort = serialPort;
             }
 
-            string? logPath = configuration.Qemu.HasDebugLog
-                ? Path.Combine(vm.Bundle.DataDirectory, UtmBundleFiles.DebugLog)
-                : null;
-
-            var plan = new QemuCommandLineBuilder(
-                configuration,
-                runtime,
-                ports,
-                vm.Bundle.ResolveDriveImagePath,
-                efiVarsPath: efiVarsPath).Build();
-
-            var process = await QemuVmProcess.StartAsync(plan, logPath);
-            await vm.SetProcessAsync(process);
-
-            if (configuration.Displays.Count > 0)
+            if (vm.Bundle.Configuration.Displays.Count > 0)
             {
                 SpiceLauncher.Start("127.0.0.1", ports.SpicePort, new SpiceConsoleOptions { FullScreen = false });
             }

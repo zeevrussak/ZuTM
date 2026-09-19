@@ -157,6 +157,14 @@ public sealed class QemuCommandLineBuilder
             _arguments.Add("-rtc");
             _arguments.Add("base=localtime");
         }
+
+        // virtio-serial bus before any virtserialport (vdagent, webdav, guest
+        // agent) — headless VMs with a guest agent need it too.
+        if (_configuration.Displays.Count > 0 || _ports.GuestAgentPort > 0)
+        {
+            _arguments.Add("-device");
+            _arguments.Add("virtio-serial-pci");
+        }
     }
 
     private void AddCpuArguments()
@@ -433,10 +441,9 @@ public sealed class QemuCommandLineBuilder
         }
 
         // SPICE server on loopback; the console client attaches to it.
+        // (The virtio-serial bus is declared in the machine section.)
         _arguments.Add("-spice");
         _arguments.Add($"port={_ports.SpicePort},addr=127.0.0.1,disable-ticketing=on,image-compression=off,playback-compression=off,streaming-video=off");
-        _arguments.Add("-device");
-        _arguments.Add("virtio-serial-pci");
 
         // SPICE vdagent enables dynamic resolution, clipboard sync and absolute mouse.
         _arguments.Add("-chardev");

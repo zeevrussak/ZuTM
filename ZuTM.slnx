@@ -3,6 +3,7 @@
     <Project Path="src/ZuTM.App/ZuTM.App.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="src/ZuTM.Cli/ZuTM.Cli.csproj" />
     <Project Path="src/ZuTM.Core/ZuTM.Core.csproj" />
     <Project Path="src/ZuTM.Spice/ZuTM.Spice.csproj" />
     <Project Path="src/ZuTM.Update/ZuTM.Update.csproj" />

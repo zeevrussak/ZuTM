@@ -68,6 +68,22 @@
       <TextBlock Text="{x:Bind Vm.Bundle.Configuration.Information.Notes, Mode=OneWay}"
                  Style="{StaticResource BodyTextBlockStyle}" IsTextSelectionEnabled="True"
                  TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+      <!-- Lifecycle tools -->
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,16,0,0">
+        <Button Content="Edit…" Click="OnEditClick" AutomationProperties.AutomationId="EditVmButton"
+                ToolTipService.ToolTip="Edit this VM's configuration (all sections)" />
+        <Button Content="Snapshot…" Click="OnSnapshotClick" IsEnabled="{x:Bind Vm.CanPause, Mode=OneWay}"
+                AutomationProperties.AutomationId="SnapshotButton"
+                ToolTipService.ToolTip="Save the full machine state into the disks" />
+        <Button Content="Restore…" Click="OnRestoreClick" IsEnabled="{x:Bind Vm.CanPause, Mode=OneWay}"
+                AutomationProperties.AutomationId="RestoreButton"
+                ToolTipService.ToolTip="Restore a saved snapshot" />
+      </StackPanel>
+
+      <!-- Serial console -->
+      <TextBlock Text="Serial console" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
+      <local:SerialConsoleControl x:Name="Terminal" AutomationProperties.AutomationId="SerialConsole" />
     </StackPanel>
   </StackPanel>
 </UserControl>
