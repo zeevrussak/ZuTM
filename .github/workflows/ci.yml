@@ -125,7 +125,7 @@ jobs:
       - name: Install WiX v6
         run: dotnet tool install --global wix
 
-      - name: Fetch QEMU runtime (x64 build; ARM64-native pending upstream)
+      - name: Fetch QEMU runtime (ARM64-native on this runner)
         shell: pwsh
         run: ./scripts/fetch-qemu.ps1
 

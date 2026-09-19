@@ -73,7 +73,7 @@ compatibility layer is specified in
 |---|---|---|
 | x64 (WHPX feature on) | x86_64 / i386 | **WHPX** (hardware) |
 | x64 | anything else | TCG JIT (multi-thread) |
-| ARM64 (WHPX feature on) | aarch64 | **WHPX** (hardware) |
+| ARM64 (WHPX feature on; Win11 24H2+) | aarch64 | **WHPX** (hardware, native QEMU from qemu.weilnetz.de/aarch64) |
 | ARM64 | anything else | TCG JIT |
 | WHPX feature off | any | TCG |
 
@@ -122,7 +122,7 @@ P/Invoke (arm64-safe, no x64-only imports).
   the bundle on a Mac once).
 - TPM (needs swtpm on Windows), VirtFS caveats, bridged networking (no bundled
   bridge backend on Windows QEMU — falls back to shared NAT with a warning).
-- Native ARM64 QEMU builds pending upstream; x64 build emulated on ARM64 hosts.
+- ARM64 hosts fetch the native QEMU build (qemu.weilnetz.de/aarch64) automatically.
 - In-app config editing of every section (model + save exist; full editors land
   with the settings-UI milestone), snapshots, `remote-viewer` HWND embedding
   inside the main window (today: external window).

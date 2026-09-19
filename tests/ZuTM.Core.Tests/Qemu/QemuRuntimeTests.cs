@@ -27,6 +27,18 @@ public class QemuRuntimeTests : IDisposable
     }
 
     [Fact]
+    public void FlatLayout_Arm64NativeRuntime_KeepsRootAsBin()
+    {
+        // ARM64 hosts bundle the aarch64-native build (qemu.weilnetz.de/aarch64);
+        // its emulator alone must also mark the flat layout.
+        Touch("qemu-system-aarch64.exe");
+        var runtime = new QemuRuntime(_root);
+
+        Assert.Equal(_root, runtime.BinDirectory);
+        Assert.Equal(Path.Combine(_root, "qemu-system-aarch64.exe"), runtime.SystemExecutable("aarch64"));
+    }
+
+    [Fact]
     public void FlatLayout_KeepsRootAsBin()
     {
         // qemu.weilnetz.de layout: exes at the root; moving them would break

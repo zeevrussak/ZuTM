@@ -18,7 +18,10 @@ public sealed class QemuRuntime
         // Two layouts exist: installers that keep executables at the root
         // (qemu.weilnetz.de — QEMU resolves its modules relative to the exe,
         // so this layout must be preserved) and distributions that use bin\.
+        // Either architecture's system emulator counts as the flat marker:
+        // an ARM64 host bundles the aarch64-native build.
         _binDirectory = File.Exists(Path.Combine(RootPath, "qemu-system-x86_64.exe"))
+                        || File.Exists(Path.Combine(RootPath, "qemu-system-aarch64.exe"))
             ? RootPath
             : Path.Combine(RootPath, "bin");
     }
@@ -48,7 +51,9 @@ public sealed class QemuRuntime
     private static bool LooksLikeRuntime(string directory) =>
         Directory.Exists(Path.Combine(directory, "bin"))
         || File.Exists(Path.Combine(directory, "qemu-system-x86_64.exe"))
-        || File.Exists(Path.Combine(directory, "bin", "qemu-system-x86_64.exe"));
+        || File.Exists(Path.Combine(directory, "qemu-system-aarch64.exe"))
+        || File.Exists(Path.Combine(directory, "bin", "qemu-system-x86_64.exe"))
+        || File.Exists(Path.Combine(directory, "bin", "qemu-system-aarch64.exe"));
 
     /// <summary>Default search order for a QEMU runtime on this machine.</summary>
     public static QemuRuntime? Discover(string? explicitRoot = null)

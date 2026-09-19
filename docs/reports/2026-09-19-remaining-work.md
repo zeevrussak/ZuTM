@@ -38,8 +38,9 @@ backlog distilled from it after today's pass.
 
 ## Blocked / external
 
-- **Native ARM64 QEMU (FR-24).** Upstream has no ARM64 Windows builds;
-  runtime discovery is layout-agnostic and will pick them up when they ship.
+- ~~Native ARM64 QEMU (FR-24)~~ **Unblocked 2026-09-19:** qemu.weilnetz.de
+  publishes ARM64-native installers (`/aarch64/`); fetch script and runtime
+  discovery handle them — validate on the ARM64 dev machine.
 - **TPM emulation (NR-04).** No maintained Windows `swtpm`.
 - **Bridged networking (FR-54/NR-05).** No OSS bridge backend for Windows
   QEMU; current behavior = shared-NAT fallback with explicit warning.

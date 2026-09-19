@@ -41,10 +41,10 @@
 | ID | Requirement | Origin | Status | Notes / why |
 |---|---|---|---|---|
 | FR-20 | QEMU-backed emulation, any guest architecture | UTM | ✅ | TCG JIT; arch is a raw string (any QEMU build target) |
-| FR-21 | Hardware acceleration via Windows Hypervisor Platform (WHPX) | ZuTM | ✅ | x64→x86_64/i386, ARM64→aarch64; auto-detected via `WHvGetCapability` |
+| FR-21 | Hardware acceleration via Windows Hypervisor Platform (WHPX) | ZuTM | ✅ | x64→x86_64/i386, ARM64→aarch64 (ARM64 WHPX needs Windows 11 24H2+ with HypervisorPlatform enabled; TCG otherwise); auto-detected via `WHvGetCapability` |
 | FR-22 | Multi-threaded TCG for multi-core guests | UTM+ | ✅ | `-accel tcg,thread=multi` unless `ForceMulticore` |
 | FR-23 | ARM64 host support | ZuTM | ✅ | WinUI app + MSI build on `windows-11-arm`; see FR-24 caveat |
-| FR-24 | Native ARM64 QEMU runtime | ZuTM | ⛔ | **Blocked:** no official ARM64 Windows QEMU builds exist yet; ARM64 hosts run the x64 build emulated. Switches to native automatically when upstream ships (layout-agnostic runtime discovery already handles it) |
+| FR-24 | Native ARM64 QEMU runtime | ZuTM | ✅ | qemu.weilnetz.de now publishes `aarch64/` ("QEMU Installer for Windows on ARM"); `fetch-qemu.ps1` auto-selects it on ARM64 hosts (SHA-512 verified, flat layout, `qemu-system-aarch64.exe` validated), and runtime discovery accepts the aarch64-native marker |
 | FR-25 | Apple-backend (Virtualization.framework) VMs | UTM | 🚫 | macOS-only hypervisor; ZuTM refuses these bundles with a clear message instead of corrupting them |
 
 ## 3. System configuration (parity: UTM `System` section)
