@@ -28,6 +28,7 @@ public sealed partial class MainWindow : Window
         Title = "ZuTM — Virtual Machines";
         ApplyMica();
         SizeToSaneDefault();
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
 
         var dispatcher = DispatcherQueue;
         var library = new VmLibraryService(InvokeOnUiAsync);

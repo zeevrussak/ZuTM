@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/logo-256.png" alt="ZuTM logo — a bold white Z with a green running-dot on a dark rounded tile" width="128" />
+</div>
+
 # ZuTM
 
 **ZuTM** — spoken letter-by-letter: "zee you tee em" (Z-U-T-M) — is a Windows 11 (x64 & ARM64) virtualization app in the spirit of

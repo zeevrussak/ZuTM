@@ -10,6 +10,7 @@
     <RootNamespace>ZuTM.App</RootNamespace>
     <AssemblyName>ZuTM</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <UseWinUI>true</UseWinUI>
 
     <!-- MSI deployment: unpackaged app, self-contained Windows App SDK runtime -->
@@ -31,6 +32,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+  </ItemGroup>
+
+  <!-- Window/taskbar icon (AppWindow.SetIcon) and shortcut/ARP icon source. -->
+  <ItemGroup>
+    <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Bundle QEMU + SPICE runtimes when they have been fetched (scripts/fetch-qemu.ps1). -->
