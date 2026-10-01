@@ -32,6 +32,52 @@ foreach ($line in Get-Content (Join-Path $repoRoot 'Directory.Build.props')) {
 if (-not $version) { throw 'Could not read VersionPrefix from Directory.Build.props' }
 Write-Host "ZuTM $version installer build" -ForegroundColor Cyan
 
+function Test-MsiLayout {
+    # Guards the shortcut/install-location contract: the Start-menu shortcut
+    # targets [INSTALLFOLDER]ZuTM.exe, so the app file must be harvested
+    # directly into INSTALLFOLDER (regression: heat once put it under a
+    # publish-<arch> subdirectory and the shortcut was dead on arrival),
+    # and the ARP/shortcut icon must be embedded.
+    param([string]$MsiPath)
+
+    $installer = New-Object -ComObject WindowsInstaller.Installer
+    $db = $installer.OpenDatabase($MsiPath, 0)
+    try {
+        function Get-Rows([string]$sql, [int]$fields) {
+            $view = $db.OpenView($sql)
+            # MSI COM methods return $null; capture so they never leak into
+            # this function's output pipeline.
+            $null = $view.Execute()
+            $rows = @()
+            while ($true) {
+                $rec = $view.Fetch()
+                if (-not $rec) { break }
+                $rows += , @(for ($i = 1; $i -le $fields; $i++) { [string]$rec.StringData($i) })
+            }
+            $null = $view.Close()
+            # Leading comma keeps the rows array nested when the pipeline
+            # unwraps single-element returns.
+            return , $rows
+        }
+
+        $shortcut = Get-Rows 'SELECT `Target` FROM `Shortcut` WHERE `Shortcut` = ''ZutmStartMenuShortcut''' 1
+        if ($shortcut.Count -ne 1) { throw 'MSI is missing the ZutmStartMenuShortcut shortcut' }
+        if ($shortcut[0][0] -ne '[INSTALLFOLDER]ZuTM.exe') { throw "unexpected shortcut target: $($shortcut[0][0])" }
+
+        $exe = Get-Rows 'SELECT `File`.`Component_`, `Component`.`Directory_` FROM `File`, `Component` WHERE `File`.`Component_` = `Component`.`Component` AND `File`.`FileName` = ''ZuTM.exe''' 2
+        if ($exe.Count -ne 1) { throw "expected exactly one ZuTM.exe in the File table, found $($exe.Count)" }
+        if ($exe[0][1] -ne 'INSTALLFOLDER') { throw "ZuTM.exe installs to directory '$($exe[0][1])', expected INSTALLFOLDER" }
+
+        $icon = Get-Rows 'SELECT `Name` FROM `Icon` WHERE `Name` = ''ZutmIcon''' 1
+        if ($icon.Count -ne 1) { throw 'MSI is missing the ZutmIcon icon (ARP/shortcut icon)' }
+    }
+    finally {
+        [void][Runtime.InteropServices.Marshal]::ReleaseComObject($db)
+        [void][Runtime.InteropServices.Marshal]::ReleaseComObject($installer)
+    }
+    Write-Host 'MSI layout verified: shortcut -> INSTALLFOLDER\ZuTM.exe, icon embedded' -ForegroundColor Green
+}
+
 function Build-One {
     param([string]$Arch)
 
@@ -56,6 +102,8 @@ function Build-One {
     $msi = Join-Path $artifacts "ZuTM-$Arch.msi"
     if (-not (Test-Path $msi)) { throw "expected $msi but it was not produced" }
     Write-Host "Built $msi" -ForegroundColor Green
+
+    Test-MsiLayout -MsiPath $msi
 
     # Deterministic digest for the release manifest (the updater verifies this).
     $hash = (Get-FileHash $msi -Algorithm SHA256).Hash.ToLowerInvariant()

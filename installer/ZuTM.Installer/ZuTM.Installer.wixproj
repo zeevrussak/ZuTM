@@ -23,6 +23,11 @@
       <DirectoryRefId>INSTALLFOLDER</DirectoryRefId>
       <PreprocessorVariable>var.PublishDir</PreprocessorVariable>
       <GenerateGuidsNow>true</GenerateGuidsNow>
+      <!-- Without this, heat makes the harvested root (publish-<arch>) a
+           subdirectory of INSTALLFOLDER, so the app lands in
+           "Program Files\ZuTM\publish-x64" while the Start-menu shortcut
+           targets "Program Files\ZuTM\ZuTM.exe". -->
+      <SuppressRootDirectory>true</SuppressRootDirectory>
     </HarvestDirectory>
   </ItemGroup>
 
