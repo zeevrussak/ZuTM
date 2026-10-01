@@ -3,6 +3,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ZuTM.App.Services;
+using ZuTM.Core.Qemu;
 using ZuTM.Core.Utm;
 
 namespace ZuTM.App;
@@ -18,8 +19,24 @@ public sealed partial class NewVmDialog : ContentDialog
         _library = library;
         InitializeComponent();
         ArchitectureBox.SelectionChanged += (_, _) => SyncTargets();
+        FormatBox.SelectionChanged += (_, _) =>
+            AllocationBox.IsEnabled = SelectedFormat().SupportsFixedAllocation();
         PrimaryButtonClick += OnPrimaryButtonClick;
     }
+
+    private DiskImageFormat SelectedFormat() => (GetTag(FormatBox) ?? "qcow2") switch
+    {
+        "raw" => DiskImageFormat.Raw,
+        "vhd" => DiskImageFormat.Vhd,
+        "vdi" => DiskImageFormat.Vdi,
+        "vmdk" => DiskImageFormat.Vmdk,
+        _ => DiskImageFormat.Qcow2,
+    };
+
+    private DiskAllocationMode SelectedAllocation() =>
+        GetTag(AllocationBox) == "fixed" && SelectedFormat().SupportsFixedAllocation()
+            ? DiskAllocationMode.Fixed
+            : DiskAllocationMode.Expanding;
 
     private void SyncTargets()
     {
@@ -33,6 +50,33 @@ public sealed partial class NewVmDialog : ContentDialog
     }
 
     private static string? GetTag(ComboBox box) => (box.SelectedItem as ComboBoxItem)?.Tag as string;
+
+    private async void OnBrowseIsoClick(object sender, RoutedEventArgs e)
+    {
+        var picker = new Windows.Storage.Pickers.FileOpenPicker();
+        if (App.MainWindow is { } window)
+        {
+            // Unpackaged WinUI 3 pickers must be bound to a window handle.
+            WinRT.Interop.InitializeWithWindow.Initialize(
+                picker, WinRT.Interop.WindowNative.GetWindowHandle(window));
+        }
+
+        picker.FileTypeFilter.Add(".iso");
+        picker.FileTypeFilter.Add(".img");
+
+        var file = await picker.PickSingleFileAsync();
+        if (file is not null)
+        {
+            IsoBox.Text = file.Path;
+            ClearIsoButton.IsEnabled = true;
+        }
+    }
+
+    private void OnClearIsoClick(object sender, RoutedEventArgs e)
+    {
+        IsoBox.Text = string.Empty;
+        ClearIsoButton.IsEnabled = false;
+    }
 
     private async void OnPrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
@@ -48,8 +92,19 @@ public sealed partial class NewVmDialog : ContentDialog
         var architecture = GetTag(ArchitectureBox) ?? "x86_64";
         var target = GetTag(TargetBox) ?? "q35";
         var diskGib = (int)Math.Clamp(DiskBox.Value, 0, 2048);
+        var isoPath = IsoBox.Text.Trim();
+        if (isoPath.Length > 0 && !File.Exists(isoPath))
+        {
+            args.Cancel = true;
+            CreateInfoBar.Message = "The selected installer ISO does not exist.";
+            CreateInfoBar.IsOpen = true;
+            return;
+        }
 
         var deferral = args.GetDeferral();
+        IsPrimaryButtonEnabled = false;
+        IsSecondaryButtonEnabled = false;
+        CreateProgress.IsActive = true;
         try
         {
             var isX86 = architecture == "x86_64";
@@ -63,7 +118,11 @@ public sealed partial class NewVmDialog : ContentDialog
                     MemorySizeMib = (int)Math.Clamp(MemoryBox.Value, 128, 131_072),
                     CpuCount = (int)Math.Clamp(CpuBox.Value, 0, 64),
                 },
-                Qemu = new UtmQemu { HasUefiBoot = UefiBox.IsChecked == true && isX86 },
+                Qemu = new UtmQemu
+                {
+                    HasUefiBoot = UefiBox.IsChecked == true && isX86,
+                    HasBalloonDevice = BalloonBox.IsChecked == true,
+                },
                 Displays =
                 [
                     new UtmDisplay { Hardware = isX86 ? "virtio-gpu-pci" : "virtio-gpu-pci" },
@@ -82,24 +141,45 @@ public sealed partial class NewVmDialog : ContentDialog
 
             var vm = await _library.CreateAsync(configuration);
 
+            // Drive list order is the boot order: the installer ISO goes first,
+            // so a blank-disk VM boots from the ISO until it is ejected.
+            var drives = new List<UtmDrive>();
+            if (isoPath.Length > 0)
+            {
+                var cd = await Task.Run(() => vm.Bundle.ImportDriveImage(isoPath));
+                drives.Add(cd with
+                {
+                    ImageType = UtmValues.DriveImageType.Cd,
+                    Interface = isX86 ? UtmValues.DriveInterface.Ide : UtmValues.DriveInterface.Virtio,
+                    IsReadOnly = true,
+                });
+            }
+
             if (diskGib > 0)
             {
-                var diskName = $"{name.ToLowerInvariant().Replace(' ', '-')}-0.qcow2";
+                var format = SelectedFormat();
+                var diskName = $"{name.ToLowerInvariant().Replace(' ', '-')}-0{format.FileExtension()}";
                 var diskPath = Path.Combine(vm.Bundle.DataDirectory, Sanitize(diskName));
-                await Task.Run(() => _library.CreateDiskImage(diskPath, diskGib * 1024L));
-
-                vm.Bundle.Configuration = vm.Bundle.Configuration with
+                var spec = new DiskImageSpec
                 {
-                    Drives =
-                    [
-                        new UtmDrive
-                        {
-                            ImageName = Path.GetFileName(diskPath),
-                            ImageType = UtmValues.DriveImageType.Disk,
-                            Interface = UtmValues.DriveInterface.Virtio,
-                        },
-                    ],
+                    Path = diskPath,
+                    SizeBytes = diskGib * 1024L * 1024L * 1024L,
+                    Format = format,
+                    Allocation = SelectedAllocation(),
                 };
+                await Task.Run(() => _library.CreateDiskImage(spec));
+
+                drives.Add(new UtmDrive
+                {
+                    ImageName = Path.GetFileName(diskPath),
+                    ImageType = UtmValues.DriveImageType.Disk,
+                    Interface = UtmValues.DriveInterface.Virtio,
+                });
+            }
+
+            if (drives.Count > 0)
+            {
+                vm.Bundle.Configuration = vm.Bundle.Configuration with { Drives = [.. drives] };
                 await Task.Run(() => vm.Bundle.Save());
             }
 
@@ -113,6 +193,9 @@ public sealed partial class NewVmDialog : ContentDialog
         }
         finally
         {
+            CreateProgress.IsActive = false;
+            IsPrimaryButtonEnabled = true;
+            IsSecondaryButtonEnabled = true;
             deferral.Complete();
         }
     }

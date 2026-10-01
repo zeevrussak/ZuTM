@@ -22,7 +22,7 @@
 
 | ID | Requirement | Origin | Status | Notes / why |
 |---|---|---|---|---|
-| FR-01 | Create a VM from a wizard (name, architecture, machine, memory, vCPUs, disk size, UEFI) | UTM | ✅ | NewVmDialog; disk created with `qemu-img` |
+| FR-01 | Create a VM from a wizard (name, architecture, machine, memory, ballooning, vCPUs, UEFI, storage: size + image type + allocation) | UTM | ✅ | NewVmDialog; disks via `DiskImageCreator` (`qemu-img`); installer ISO optional |
 | FR-02 | Start / stop a VM | UTM | ✅ | Stop = ACPI power-down w/ 30 s grace, then process-tree kill |
 | FR-03 | Pause / resume a VM | UTM | ✅ | QMP stop/cont + STOP/RESUME event-driven status + Pause/Resume buttons |
 | FR-04 | Hard reset a VM | UTM | ✅ | QMP system_reset + Reset button with tooltip |
@@ -64,7 +64,7 @@
 
 | ID | Requirement | Origin | Status | Notes / why |
 |---|---|---|---|---|
-| FR-40 | QCOW2 disk creation | UTM | ✅ | `qemu-img create` |
+| FR-40 | Disk image creation: QCOW2/RAW/VHD/VDI/VMDK with expanding or fixed allocation | UTM+ | ✅ | `DiskImageCreator` (`qemu-img create`); fixed = VHD `subformat=fixed` / VDI `static=on` — Windows qemu-img cannot preallocate qcow2/raw/vmdk |
 | FR-41 | Import existing disk images | UTM | ✅ | Copy-in with collision-safe naming |
 | FR-42 | All UTM drive types (Disk/CD/BIOS/kernel/initrd/dtb) | UTM | ✅ | Mapped to `-drive`/`-bios`/`-kernel`/`-initrd`/`-dtb` |
 | FR-43 | All UTM drive interfaces (IDE/SCSI/SD/MTD/Floppy/PFlash/VirtIO/NVMe/USB) | UTM | ✅ | Correct frontend devices for bus-less interfaces |

@@ -16,7 +16,7 @@ A `.utm` "file" is a directory:
 My VM.utm/
 ├── config.plist      XML property list (see §2); written by UTM as XML
 └── Data/             all VM payloads (older UTM ≤3 used Images/, v4 uses Data/)
-    ├── disk-0.qcow2  QCOW2 disk images (name = Drive.ImageName)
+    ├── disk-0.qcow2  disk images — QCOW2 (UTM default) / RAW / VHD / VDI / VMDK; format follows the Drive.ImageName extension
     ├── efi_vars.fd   UEFI variables (QEMU config, UEFI boot)
     ├── debug.log     debug log when QEMU.DebugLog = true
     ├── tpmdata       emulated TPM state (QEMU.TPMDevice = true)

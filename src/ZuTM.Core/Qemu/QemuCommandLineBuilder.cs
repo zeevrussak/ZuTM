@@ -77,7 +77,8 @@ public sealed class QemuCommandLineBuilder
         QemuPortSet ports,
         Func<UtmDrive, string?>? resolveImagePath = null,
         QemuAcceleration? acceleration = null,
-        string? efiVarsPath = null)
+        string? efiVarsPath = null,
+        bool? whpxAvailable = null)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -87,8 +88,21 @@ public sealed class QemuCommandLineBuilder
         _ports = ports;
         _resolveImagePath = resolveImagePath ?? (_ => null);
         _efiVarsPath = efiVarsPath;
-        _acceleration = acceleration
-            ?? AcceleratorDetector.Detect(configuration.System.Architecture);
+        if (acceleration is not null)
+        {
+            _acceleration = acceleration.Value;
+        }
+        else
+        {
+            _acceleration = AcceleratorDetector.Detect(configuration.System.Architecture, whpxAvailable);
+            var fallbackReason = AcceleratorDetector.GetTcgFallbackReason(configuration.System.Architecture, whpxAvailable);
+            if (fallbackReason is not null)
+            {
+                // The user gets hardware-quality speed only with WHPX; a silent
+                // TCG fallback reads as "ZuTM is broken" — explain instead.
+                _warnings.Add(fallbackReason);
+            }
+        }
     }
 
     public QemuLaunchPlan Build()
@@ -231,16 +245,28 @@ public sealed class QemuCommandLineBuilder
 
     private void AddDriveArguments()
     {
+        // Boot priority follows the drive list order (UTM semantics): drives
+        // boot in the order they appear, via QEMU bootindex. The counter
+        // advances for every bootable drive so unannotated backends (exotic
+        // interfaces without an explicit frontend device) can never overtake
+        // an annotated one.
+        var bootIndex = 0;
         var index = 0;
         foreach (var drive in _configuration.Drives)
         {
             var path = _resolveImagePath(drive);
-            AddDrive(drive, path, index);
+            var bootable = drive.ImageType is UtmValues.DriveImageType.Disk or UtmValues.DriveImageType.Cd;
+            AddDrive(drive, path, index, bootable ? bootIndex : null);
+            if (bootable)
+            {
+                bootIndex++;
+            }
+
             index++;
         }
     }
 
-    private void AddDrive(UtmDrive drive, string? path, int index)
+    private void AddDrive(UtmDrive drive, string? path, int index, int? bootIndex)
     {
         switch (drive.ImageType)
         {
@@ -277,10 +303,10 @@ public sealed class QemuCommandLineBuilder
 
                 break;
             case UtmValues.DriveImageType.Disk:
-                AddDiskDrive(drive, path, index);
+                AddDiskDrive(drive, path, index, bootIndex);
                 break;
             case UtmValues.DriveImageType.Cd:
-                AddCdDrive(drive, path, index);
+                AddCdDrive(drive, path, index, bootIndex);
                 break;
             case UtmValues.DriveImageType.None:
                 break;
@@ -290,7 +316,7 @@ public sealed class QemuCommandLineBuilder
         }
     }
 
-    private void AddDiskDrive(UtmDrive drive, string? path, int index)
+    private void AddDiskDrive(UtmDrive drive, string? path, int index, int? bootIndex)
     {
         if (path is null)
         {
@@ -298,20 +324,39 @@ public sealed class QemuCommandLineBuilder
             return;
         }
 
-        var format = Path.GetExtension(path).Equals(".qcow2", StringComparison.OrdinalIgnoreCase) ? "qcow2" : "raw";
+        var format = DiskImageExtensions.QemuFormatForFileName(path);
         var id = $"zutm-drive-{index}";
-        var @if = drive.Interface switch
-        {
-            UtmValues.DriveInterface.Ide => "ide",
-            UtmValues.DriveInterface.Scsi => "scsi",
-            UtmValues.DriveInterface.Sd => "sd",
-            UtmValues.DriveInterface.Mtd => "mtd",
-            UtmValues.DriveInterface.Floppy => "floppy",
-            UtmValues.DriveInterface.Pflash => "pflash",
-            _ => "none",
-        };
+        string option;
+        string? frontendDevice;
 
-        var option = $"id={id},if={@if},format={format},file={path}";
+        if (drive.Interface is UtmValues.DriveInterface.Ide)
+        {
+            // Explicit IDE frontend so the disk participates in bootindex
+            // ordering (a `if=ide` backend device cannot carry a bootindex).
+            option = $"id={id},if=none,format={format},file={path}";
+            frontendDevice = $"ide-hd,drive={id}";
+        }
+        else
+        {
+            var @if = drive.Interface switch
+            {
+                UtmValues.DriveInterface.Scsi => "scsi",
+                UtmValues.DriveInterface.Sd => "sd",
+                UtmValues.DriveInterface.Mtd => "mtd",
+                UtmValues.DriveInterface.Floppy => "floppy",
+                UtmValues.DriveInterface.Pflash => "pflash",
+                _ => "none",
+            };
+            option = $"id={id},if={@if},format={format},file={path}";
+            frontendDevice = drive.Interface switch
+            {
+                UtmValues.DriveInterface.Virtio => $"virtio-blk-pci,drive={id}",
+                UtmValues.DriveInterface.Nvme => $"nvme,drive={id}",
+                UtmValues.DriveInterface.Usb => $"usb-storage,drive={id}",
+                _ => null, // backend-provided bus (scsi/sd/mtd/floppy/pflash)
+            };
+        }
+
         if (drive.IsReadOnly)
         {
             option += ",readonly=on";
@@ -320,34 +365,44 @@ public sealed class QemuCommandLineBuilder
         _arguments.Add("-drive");
         _arguments.Add(option);
 
-        // Interfaces without native -drive buses need an explicit frontend device.
-        switch (drive.Interface)
+        if (frontendDevice is not null)
         {
-            case UtmValues.DriveInterface.Virtio:
-                _arguments.Add("-device");
-                _arguments.Add($"virtio-blk-pci,drive={id}");
-                break;
-            case UtmValues.DriveInterface.Nvme:
-                _arguments.Add("-device");
-                _arguments.Add($"nvme,drive={id}");
-                break;
-            case UtmValues.DriveInterface.Usb:
-                _arguments.Add("-device");
-                _arguments.Add($"usb-storage,drive={id}");
-                break;
+            if (bootIndex is not null)
+            {
+                frontendDevice += $",bootindex={bootIndex.Value}";
+            }
+
+            _arguments.Add("-device");
+            _arguments.Add(frontendDevice);
         }
     }
 
-    private void AddCdDrive(UtmDrive drive, string? path, int index)
+    private void AddCdDrive(UtmDrive drive, string? path, int index, int? bootIndex)
     {
-        var @if = drive.Interface switch
+        var id = $"zutm-cd-{index}";
+        string option;
+        string? frontendDevice;
+        if (drive.Interface == UtmValues.DriveInterface.Scsi)
         {
-            UtmValues.DriveInterface.Scsi => "scsi",
-            UtmValues.DriveInterface.Virtio => "none",
-            _ => "ide",
-        };
+            // Legacy backend-created SCSI bus (creates the default adapter);
+            // the backend device cannot carry a bootindex.
+            option = $"id={id},if=scsi,media=cdrom";
+            frontendDevice = null;
+        }
+        else
+        {
+            option = $"id={id},if=none,media=cdrom";
+            frontendDevice = drive.Interface switch
+            {
+                // No IDE/SATA on `virt` machines: a SCSI CD behind a virtio-scsi
+                // controller is the UTM-equivalent CD transport there.
+                UtmValues.DriveInterface.Virtio => $"scsi-cd,drive={id},bus=zutm-scsi-{index}.0",
+                UtmValues.DriveInterface.Usb => $"usb-storage,drive={id}",
+                // IDE/None: explicit IDE CD frontend (q35's AHCI provides the bus).
+                _ => $"ide-cd,drive={id}",
+            };
+        }
 
-        var option = $"id=zutm-cd-{index},if={@if},media=cdrom";
         if (path is not null)
         {
             option += $",file={path}";
@@ -364,7 +419,18 @@ public sealed class QemuCommandLineBuilder
         if (drive.Interface == UtmValues.DriveInterface.Virtio)
         {
             _arguments.Add("-device");
-            _arguments.Add($"scsi-cd,drive=zutm-cd-{index}");
+            _arguments.Add($"virtio-scsi-pci,id=zutm-scsi-{index}");
+        }
+
+        if (frontendDevice is not null)
+        {
+            if (bootIndex is not null)
+            {
+                frontendDevice += $",bootindex={bootIndex.Value}";
+            }
+
+            _arguments.Add("-device");
+            _arguments.Add(frontendDevice);
         }
     }
 
@@ -474,21 +540,34 @@ public sealed class QemuCommandLineBuilder
             return;
         }
 
-        _arguments.Add("-usb");
-        switch (input.UsbBusSupport)
+        // `virt` machines ship no built-in USB controller, so bare `-usb`
+        // provides no bus and usb-tablet fails to attach — an xHCI controller
+        // is required there. PC machines (q35/pc) have a native USB bus.
+        var isVirtMachine = string.Equals(
+            _configuration.System.Target, "virt", StringComparison.OrdinalIgnoreCase);
+        if (isVirtMachine)
         {
-            case UtmValues.UsbBusSupport.Usb3:
-                _arguments.Add("-device");
-                _arguments.Add("qemu-xhci");
-                break;
-            case UtmValues.UsbBusSupport.Usb2:
-                _arguments.Add("-device");
-                _arguments.Add("usb-ehci");
-                break;
-            case UtmValues.UsbBusSupport.None:
-            case UtmValues.UsbBusSupport.Default:
-            default:
-                break;
+            _arguments.Add("-device");
+            _arguments.Add("qemu-xhci");
+        }
+        else
+        {
+            _arguments.Add("-usb");
+            switch (input.UsbBusSupport)
+            {
+                case UtmValues.UsbBusSupport.Usb3:
+                    _arguments.Add("-device");
+                    _arguments.Add("qemu-xhci");
+                    break;
+                case UtmValues.UsbBusSupport.Usb2:
+                    _arguments.Add("-device");
+                    _arguments.Add("usb-ehci");
+                    break;
+                case UtmValues.UsbBusSupport.None:
+                case UtmValues.UsbBusSupport.Default:
+                default:
+                    break;
+            }
         }
 
         _arguments.Add("-device");

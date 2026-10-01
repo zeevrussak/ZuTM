@@ -43,6 +43,10 @@ public sealed partial class VmDetailView : UserControl
 
     public ObservableCollection<DetailRow> DriveRows { get; } = [];
 
+    /// <summary>True when a stopped VM still has an installer ISO attached.</summary>
+    public bool HasEjectableIso => Vm is { CanStart: true } vm
+        && vm.Bundle.Configuration.Drives.Any(d => d.ImageType == UtmValues.DriveImageType.Cd);
+
     public VmDetailView()
     {
         InitializeComponent();
@@ -70,6 +74,12 @@ public sealed partial class VmDetailView : UserControl
         if (e.PropertyName == nameof(VmItemViewModel.SerialPort) && Vm is not null)
         {
             Terminal.Endpoint = Vm.SerialPort;
+        }
+
+        // Start/stop flips the eject affordance (only meaningful while stopped).
+        if (e.PropertyName is nameof(VmItemViewModel.Status) or nameof(VmItemViewModel.CanStart))
+        {
+            Bindings.Update();
         }
     }
 
@@ -192,6 +202,44 @@ public sealed partial class VmDetailView : UserControl
         {
             Rebuild(); // fields may have changed
         }
+    }
+
+    private async void OnEjectIsoClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is not { CanStart: true } vm)
+        {
+            return; // only while stopped — QEMU holds the ISO open while running
+        }
+
+        var confirm = new ContentDialog
+        {
+            Title = "Eject installer ISO?",
+            Content = "The CD drive is detached and the ISO copy inside the VM bundle is deleted. "
+                + "On the next start the VM boots from its disk.",
+            PrimaryButtonText = "Eject",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                vm.Bundle.DetachCdDrives();
+                vm.Bundle.Save();
+            });
+        }
+        catch (Exception ex)
+        {
+            vm.Error = $"Eject failed: {ex.Message}";
+        }
+
+        Rebuild();
     }
 
     private async void OnSnapshotClick(object sender, RoutedEventArgs e)

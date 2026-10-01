@@ -9,27 +9,62 @@
     SecondaryButtonText="Cancel"
     DefaultButton="Primary">
 
-  <StackPanel Spacing="12" MinWidth="420">
-    <TextBox x:Name="NameBox" Header="Name" PlaceholderText="My VM" />
+  <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="12" MinWidth="420">
+      <TextBox x:Name="NameBox" Header="Name" PlaceholderText="My VM" />
 
-    <ComboBox x:Name="ArchitectureBox" Header="Architecture" SelectedIndex="0" MinWidth="200">
-      <ComboBoxItem Content="x86_64 (PC)" Tag="x86_64" />
-      <ComboBoxItem Content="aarch64 (ARM)" Tag="aarch64" />
-    </ComboBox>
+      <ComboBox x:Name="ArchitectureBox" Header="Architecture" SelectedIndex="0" MinWidth="200">
+        <ComboBoxItem Content="x86_64 (PC)" Tag="x86_64" />
+        <ComboBoxItem Content="aarch64 (ARM)" Tag="aarch64" />
+      </ComboBox>
 
-    <ComboBox x:Name="TargetBox" Header="Machine" SelectedIndex="0" MinWidth="200">
-      <ComboBoxItem Content="q35 (modern PC)" Tag="q35" />
-      <ComboBoxItem Content="virt (ARM)" Tag="virt" />
-    </ComboBox>
+      <ComboBox x:Name="TargetBox" Header="Machine" SelectedIndex="0" MinWidth="200">
+        <ComboBoxItem Content="q35 (modern PC)" Tag="q35" />
+        <ComboBoxItem Content="virt (ARM)" Tag="virt" />
+      </ComboBox>
 
-    <NumberBox x:Name="MemoryBox" Header="Memory (MiB)" Value="2048" Minimum="128" Maximum="131072" SmallChange="512" LargeChange="1024" SpinButtonPlacementMode="Compact" />
+      <NumberBox x:Name="MemoryBox" Header="Memory (MiB)" Value="2048" Minimum="128" Maximum="131072" SmallChange="512" LargeChange="1024" SpinButtonPlacementMode="Compact" />
 
-    <NumberBox x:Name="CpuBox" Header="vCPUs (0 = match host)" Value="2" Minimum="0" Maximum="64" SpinButtonPlacementMode="Compact" />
+      <CheckBox x:Name="BalloonBox" Content="Memory ballooning (return idle RAM to the host)" IsChecked="True" />
 
-    <NumberBox x:Name="DiskBox" Header="Disk size (GiB, 0 = none)" Value="20" Minimum="0" Maximum="2048" SpinButtonPlacementMode="Compact" />
+      <NumberBox x:Name="CpuBox" Header="vCPUs (0 = match host)" Value="2" Minimum="0" Maximum="64" SpinButtonPlacementMode="Compact" />
 
-    <CheckBox x:Name="UefiBox" Content="UEFI boot" IsChecked="True" />
+      <CheckBox x:Name="UefiBox" Content="UEFI boot" IsChecked="True" />
 
-    <InfoBar x:Name="CreateInfoBar" IsOpen="False" Severity="Error" />
-  </StackPanel>
+      <TextBlock Text="Storage" Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+      <NumberBox x:Name="DiskBox" Header="Disk size (GiB, 0 = none)" Value="20" Minimum="0" Maximum="2048" SpinButtonPlacementMode="Compact" />
+
+      <ComboBox x:Name="FormatBox" Header="Disk image type" SelectedIndex="0" MinWidth="280">
+        <ComboBoxItem Content="QCOW2 — sparse, snapshots (recommended)" Tag="qcow2" />
+        <ComboBoxItem Content="RAW — plain flat image" Tag="raw" />
+        <ComboBoxItem Content="VHD — Hyper-V / Virtual PC" Tag="vhd" />
+        <ComboBoxItem Content="VDI — VirtualBox" Tag="vdi" />
+        <ComboBoxItem Content="VMDK — VMware" Tag="vmdk" />
+      </ComboBox>
+
+      <ComboBox x:Name="AllocationBox" Header="Allocation (VHD / VDI only)" SelectedIndex="0" MinWidth="280" IsEnabled="False"
+                ToolTipService.ToolTip="Fixed allocation reserves the full disk size on the host at creation time. Windows QEMU can preallocate only VHD and VDI images; QCOW2, RAW and VMDK always expand as the guest writes.">
+        <ComboBoxItem Content="Expanding — grows as the guest writes" Tag="expanding" />
+        <ComboBoxItem Content="Fixed — reserve full size on the host now" Tag="fixed" />
+      </ComboBox>
+
+      <Grid ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBox x:Name="IsoBox" Grid.Column="0" Header="Installer ISO (optional)"
+                 PlaceholderText="No ISO — boots from disk" IsReadOnly="True" />
+        <Button x:Name="BrowseIsoButton" Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="OnBrowseIsoClick"
+                ToolTipService.ToolTip="Pick an ISO to boot first — e.g. a Windows or Linux installer" />
+        <Button x:Name="ClearIsoButton" Grid.Column="2" Content="Clear" VerticalAlignment="Bottom" Click="OnClearIsoClick" IsEnabled="False" />
+      </Grid>
+
+      <InfoBar x:Name="CreateInfoBar" IsOpen="False" Severity="Error" />
+
+      <ProgressRing x:Name="CreateProgress" IsActive="False" HorizontalAlignment="Left" Width="24" Height="24" />
+    </StackPanel>
+  </ScrollViewer>
 </ContentDialog>

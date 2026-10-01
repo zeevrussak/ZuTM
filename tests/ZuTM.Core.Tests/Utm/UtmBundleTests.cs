@@ -193,6 +193,35 @@ public sealed class UtmBundleTests : IDisposable
     }
 
     [Fact]
+    public void DetachCdDrives_RemovesCdsAndTheirBundledFiles_KeepsDisks()
+    {
+        WriteMinimalBundle(BundlePath());
+        var bundle = UtmBundle.Load(BundlePath());
+        var iso = Path.Combine(_tempRoot, "installer.iso");
+        File.WriteAllText(iso, "iso!");
+
+        var cd = bundle.ImportDriveImage(iso) with
+        {
+            ImageType = UtmValues.DriveImageType.Cd,
+            Interface = UtmValues.DriveInterface.Ide,
+            IsReadOnly = true,
+        };
+        bundle.Configuration = bundle.Configuration with
+        {
+            Drives = [cd, .. bundle.Configuration.Drives],
+        };
+
+        var detached = bundle.DetachCdDrives();
+
+        Assert.Equal(1, detached);
+        Assert.DoesNotContain(bundle.Configuration.Drives, d => d.ImageType == UtmValues.DriveImageType.Cd);
+        Assert.Contains(bundle.Configuration.Drives, d => d.ImageType == UtmValues.DriveImageType.Disk);
+        Assert.False(File.Exists(Path.Combine(bundle.DataDirectory, "installer.iso")));
+
+        Assert.Equal(0, bundle.DetachCdDrives()); // idempotent
+    }
+
+    [Fact]
     public void FindBundles_ListsUtmDirectoriesOnly()
     {
         WriteMinimalBundle(BundlePath("A.utm"));

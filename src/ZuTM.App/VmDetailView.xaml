@@ -35,6 +35,7 @@
       </Grid>
 
       <InfoBar IsOpen="{x:Bind Vm.HasError, Mode=OneWay}" Severity="Error" Message="{x:Bind Vm.Error, Mode=OneWay}" Margin="0,4,0,8" />
+      <InfoBar IsOpen="{x:Bind Vm.HasWarning, Mode=OneWay}" Severity="Warning" Message="{x:Bind Vm.Warning, Mode=OneWay}" Margin="0,0,0,8" />
 
       <TextBlock Text="System" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
       <local:SettingsRow Label="Architecture" Value="{x:Bind Vm.Architecture, Mode=OneWay}" />
@@ -51,6 +52,9 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      <Button Content="Eject installer ISO…" Click="OnEjectIsoClick" Margin="0,4,0,0"
+              Visibility="{x:Bind local:Converters.ToVisibility(HasEjectableIso), Mode=OneWay}"
+              ToolTipService.ToolTip="Detach the installer ISO and delete its bundle copy, so the VM boots from disk on the next start" />
 
       <TextBlock Text="Display" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
       <local:SettingsRow Label="Graphics" Value="{x:Bind DisplayText, Mode=OneWay}" />

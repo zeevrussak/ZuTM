@@ -6,7 +6,8 @@ using ZuTM.Core.Utm;
 
 namespace ZuTM.Core.Qemu;
 
-public sealed record VmLaunchResult(QemuVmProcess Process, QemuPortSet Ports);
+/// <summary>Result of one VM start: the process, its endpoints, and plan warnings.</summary>
+public sealed record VmLaunchResult(QemuVmProcess Process, QemuPortSet Ports, IReadOnlyList<string> Warnings);
 
 public sealed class VmLauncher(QemuRuntime runtime, RuntimeRegistry? registry = null)
 {
@@ -61,7 +62,7 @@ public sealed class VmLauncher(QemuRuntime runtime, RuntimeRegistry? registry = 
             StartedUtc = DateTimeOffset.UtcNow,
         });
 
-        return new VmLaunchResult(process, ports);
+        return new VmLaunchResult(process, ports, plan.Warnings);
     }
 
     /// <summary>Connects to a VM recorded in the runtime registry (CLI path).</summary>

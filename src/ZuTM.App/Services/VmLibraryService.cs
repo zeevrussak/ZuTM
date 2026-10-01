@@ -67,6 +67,23 @@ public sealed class VmItemViewModel : ObservableObject, IDisposable
 
     public bool HasError => Error is not null;
 
+    /// <summary>Launch-plan warnings for the current run (e.g. TCG fallback — WHP missing).</summary>
+    public string? Warning
+    {
+        get => _warning;
+        internal set
+        {
+            if (SetProperty(ref _warning, value))
+            {
+                OnPropertyChanged(nameof(HasWarning));
+            }
+        }
+    }
+
+    public bool HasWarning => Warning is not null;
+
+    private string? _warning;
+
     public VmStatus Status
     {
         get => _status;
@@ -229,6 +246,7 @@ public sealed class VmLibraryService : IDisposable
 
         vm.Status = VmStatus.Starting;
         vm.Error = null;
+        vm.Warning = null;
         try
         {
             var launcher = new VmLauncher(QemuRuntime!, _runtimeRegistry);
@@ -236,6 +254,10 @@ public sealed class VmLibraryService : IDisposable
             var process = result.Process;
             var ports = result.Ports;
             await vm.SetProcessAsync(process, ports);
+
+            // Launch-plan warnings (TCG fallback, network fallbacks, …) were
+            // previously invisible — the VM just seemed inexplicably slow.
+            vm.Warning = result.Warnings.Count > 0 ? string.Join("\n", result.Warnings) : null;
 
             // In-app serial terminal endpoint for the first serial port, if any.
             if (ports.SerialPorts.TryGetValue(0, out var serialPort))
@@ -392,37 +414,15 @@ public sealed class VmLibraryService : IDisposable
         return vm;
     }
 
-    /// <summary>Creates a blank QCOW2 disk via qemu-img.</summary>
-    public void CreateDiskImage(string path, long sizeMebiBytes)
+    /// <summary>Creates a blank disk image (any supported format/allocation) via qemu-img.</summary>
+    public void CreateDiskImage(DiskImageSpec spec)
     {
-        var qemuImg = QemuRuntime is null ? null : Path.Combine(QemuRuntime.BinDirectory, "qemu-img.exe");
-        if (qemuImg is null || !File.Exists(qemuImg))
+        if (QemuRuntime is null)
         {
-            throw new FileNotFoundException("qemu-img.exe not found in the QEMU runtime.");
+            throw new FileNotFoundException("qemu-img.exe not found: no QEMU runtime is available.");
         }
 
-        // ArgumentList, never an interpolated command line: paths with quotes
-        // or spaces cannot inject additional qemu-img arguments.
-        var startInfo = new System.Diagnostics.ProcessStartInfo(qemuImg)
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        startInfo.ArgumentList.Add("create");
-        startInfo.ArgumentList.Add("-f");
-        startInfo.ArgumentList.Add("qcow2");
-        startInfo.ArgumentList.Add(Path.GetFullPath(path));
-        startInfo.ArgumentList.Add($"{sizeMebiBytes}M");
-
-        var result = System.Diagnostics.Process.Start(startInfo);
-        var stderr = result?.StandardError.ReadToEnd();
-        result?.WaitForExit(30_000);
-        if (result is null || result.ExitCode != 0)
-        {
-            throw new InvalidOperationException($"qemu-img failed: {stderr}");
-        }
+        new DiskImageCreator(QemuRuntime).Create(spec);
     }
 
     public void SaveSettings(AppSettings settings)

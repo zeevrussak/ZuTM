@@ -328,4 +328,42 @@ public class AcceleratorDetectorTests
         Assert.Equal(QemuAcceleration.Whpx, AcceleratorDetector.Detect("aarch64", whpxAvailable: true));
         Assert.Equal(QemuAcceleration.Tcg, AcceleratorDetector.Detect("x86_64", whpxAvailable: true));
     }
+
+    [Fact]
+    public void RealHostProbe_NeverThrows()
+    {
+        // Exercises the native WHP probe on whatever host runs the tests,
+        // including machines without the Windows Hypervisor Platform feature
+        // (WinHvPlatform.dll exists but lacks the WHv exports).
+        var exception = Record.Exception(() => AcceleratorDetector.IsWindowsHypervisorPlatformAvailable());
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void TcgFallbackReason_ExplainsMissingWhp_ForHostCompatibleGuests()
+    {
+        var guest = AcceleratorDetector.HostArchitecture switch
+        {
+            "x86_64" => "x86_64",
+            "aarch64" => "aarch64",
+            _ => "x86_64",
+        };
+
+        var reason = AcceleratorDetector.GetTcgFallbackReason(guest, whpxAvailable: false);
+        Assert.NotNull(reason);
+        Assert.Contains("Windows Hypervisor Platform", reason);
+
+        Assert.Null(AcceleratorDetector.GetTcgFallbackReason(guest, whpxAvailable: true));
+    }
+
+    [Fact]
+    public void TcgFallbackReason_Null_ForCrossArchitectureGuests()
+    {
+        // No supported host can hardware-accelerate these guests.
+        foreach (var guest in new[] { "mips64", "riscv32", "ppc" })
+        {
+            Assert.Null(AcceleratorDetector.GetTcgFallbackReason(guest, whpxAvailable: false));
+            Assert.Null(AcceleratorDetector.GetTcgFallbackReason(guest, whpxAvailable: true));
+        }
+    }
 }

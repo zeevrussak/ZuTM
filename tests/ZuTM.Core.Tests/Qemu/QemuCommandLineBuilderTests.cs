@@ -39,9 +39,10 @@ public class QemuCommandLineBuilderTests : IDisposable
     private QemuLaunchPlan Build(
         UtmConfiguration config,
         Func<UtmDrive, string?>? resolver = null,
-        QemuAcceleration acceleration = QemuAcceleration.Tcg,
-        string? efiVars = null) =>
-        new QemuCommandLineBuilder(config, CreateRuntime(), Ports(), resolver, acceleration, efiVars).Build();
+        QemuAcceleration? acceleration = QemuAcceleration.Tcg,
+        string? efiVars = null,
+        bool? whpxAvailable = null) =>
+        new QemuCommandLineBuilder(config, CreateRuntime(), Ports(), resolver, acceleration, efiVars, whpxAvailable).Build();
 
     private static int IndexOf(IReadOnlyList<string> args, string flag)
     {
@@ -161,7 +162,36 @@ public class QemuCommandLineBuilderTests : IDisposable
         var plan = Build(config, _ => @"C:\vm\Data\disk-0.qcow2");
 
         AssertHasArg("virtio drive", plan.Arguments, a => a == "id=zutm-drive-0,if=none,format=qcow2,file=C:\\vm\\Data\\disk-0.qcow2");
-        AssertHasArg("virtio device", plan.Arguments, a => a == "virtio-blk-pci,drive=zutm-drive-0");
+        AssertHasArg("virtio device", plan.Arguments, a => a == "virtio-blk-pci,drive=zutm-drive-0,bootindex=0");
+    }
+
+    [Fact]
+    public void DiskDrive_FormatInferredFromImageExtension()
+    {
+        var cases = new[]
+        {
+            ("disk-0.qcow2", "qcow2"),
+            ("disk-0.QCOW2", "qcow2"),
+            ("disk-0.raw", "raw"),
+            ("disk-0.img", "raw"),
+            ("disk-0.vhd", "vpc"),
+            ("disk-0.vdi", "vdi"),
+            ("disk-0.vmdk", "vmdk"),
+        };
+
+        foreach (var (imageName, expectedFormat) in cases)
+        {
+            var config = NewConfig(c => c = c with
+            {
+                Drives = [new UtmDrive { ImageName = imageName, ImageType = UtmValues.DriveImageType.Disk, Interface = UtmValues.DriveInterface.Virtio }],
+            });
+
+            var plan = Build(config, _ => @"C:\vm\Data\" + imageName);
+
+            AssertHasArg($"format for {imageName}", plan.Arguments,
+                a => a.StartsWith("id=zutm-drive-0,", StringComparison.Ordinal)
+                    && a.Contains($"format={expectedFormat},", StringComparison.Ordinal));
+        }
     }
 
     [Fact]
@@ -169,13 +199,13 @@ public class QemuCommandLineBuilderTests : IDisposable
     {
         var interfaces = new[]
         {
-            (UtmValues.DriveInterface.Ide, "if=ide"),
-            (UtmValues.DriveInterface.Scsi, "if=scsi"),
-            (UtmValues.DriveInterface.Nvme, "if=none"),
-            (UtmValues.DriveInterface.Usb, "if=none"),
+            (UtmValues.DriveInterface.Ide, "if=none", "ide-hd"),
+            (UtmValues.DriveInterface.Scsi, "if=scsi", (string?)null),
+            (UtmValues.DriveInterface.Nvme, "if=none", "nvme"),
+            (UtmValues.DriveInterface.Usb, "if=none", "usb-storage"),
         };
 
-        foreach (var (iface, expected) in interfaces)
+        foreach (var (iface, expected, frontend) in interfaces)
         {
             var config = NewConfig(c => c = c with
             {
@@ -186,6 +216,15 @@ public class QemuCommandLineBuilderTests : IDisposable
 
             AssertHasArg($"interface {iface}", plan.Arguments,
                 a => a.StartsWith("id=zutm-drive-0,", StringComparison.Ordinal) && a.Contains(expected, StringComparison.Ordinal));
+            if (frontend is null)
+            {
+                Assert.DoesNotContain(plan.Arguments, a => a.Contains($",drive=zutm-drive-0,", StringComparison.Ordinal));
+            }
+            else
+            {
+                AssertHasArg($"frontend {frontend} for {iface}", plan.Arguments,
+                    a => a.StartsWith(frontend + ",drive=zutm-drive-0", StringComparison.Ordinal));
+            }
         }
     }
 
@@ -225,7 +264,99 @@ public class QemuCommandLineBuilderTests : IDisposable
 
         var plan = Build(config);
 
-        AssertHasArg("empty cdrom", plan.Arguments, a => a == "id=zutm-cd-0,if=ide,media=cdrom");
+        AssertHasArg("empty cdrom", plan.Arguments, a => a == "id=zutm-cd-0,if=none,media=cdrom");
+        AssertHasArg("ide cd device", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-0,bootindex=0");
+    }
+
+    [Fact]
+    public void VirtioCd_GetsScsiController_AndBootsFirst()
+    {
+        var config = NewConfig(c => c = c with
+        {
+            System = c.System with { Architecture = "aarch64", Target = "virt" },
+            Drives =
+            [
+                new UtmDrive
+                {
+                    ImageName = "install.iso",
+                    ImageType = UtmValues.DriveImageType.Cd,
+                    Interface = UtmValues.DriveInterface.Virtio,
+                    IsReadOnly = true,
+                },
+            ],
+        });
+
+        var plan = Build(config, _ => @"C:\vm\Data\install.iso");
+
+        AssertHasArg("cdrom backend", plan.Arguments, a => a == "id=zutm-cd-0,if=none,media=cdrom,file=C:\\vm\\Data\\install.iso,readonly=on");
+        AssertHasArg("scsi controller", plan.Arguments, a => a == "virtio-scsi-pci,id=zutm-scsi-0");
+        AssertHasArg("scsi cd device", plan.Arguments, a => a == "scsi-cd,drive=zutm-cd-0,bus=zutm-scsi-0.0,bootindex=0");
+    }
+
+    [Fact]
+    public void InstallerIso_ListedBeforeDisk_BootsFirst()
+    {
+        var config = NewConfig(c => c = c with
+        {
+            Drives =
+            [
+                new UtmDrive { ImageName = "install.iso", ImageType = UtmValues.DriveImageType.Cd, Interface = UtmValues.DriveInterface.Ide, IsReadOnly = true },
+                new UtmDrive { ImageName = "disk-0.qcow2", ImageType = UtmValues.DriveImageType.Disk, Interface = UtmValues.DriveInterface.Virtio },
+            ],
+        });
+
+        var plan = Build(config, drive => @$"C:\vm\Data\{drive.ImageName}");
+
+        AssertHasArg("cd boots first", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-0,bootindex=0");
+        AssertHasArg("disk boots second", plan.Arguments, a => a == "virtio-blk-pci,drive=zutm-drive-1,bootindex=1");
+    }
+
+    [Fact]
+    public void DiskListedBeforeCd_KeepsBootPriority()
+    {
+        var config = NewConfig(c => c = c with
+        {
+            Drives =
+            [
+                new UtmDrive { ImageName = "disk-0.qcow2", ImageType = UtmValues.DriveImageType.Disk, Interface = UtmValues.DriveInterface.Virtio },
+                new UtmDrive { ImageName = "install.iso", ImageType = UtmValues.DriveImageType.Cd, Interface = UtmValues.DriveInterface.Ide },
+            ],
+        });
+
+        var plan = Build(config, drive => @$"C:\vm\Data\{drive.ImageName}");
+
+        AssertHasArg("disk boots first", plan.Arguments, a => a == "virtio-blk-pci,drive=zutm-drive-0,bootindex=0");
+        AssertHasArg("cd boots second", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-1,bootindex=1");
+    }
+
+    [Fact]
+    public void AccelerationDetected_WithoutWhp_WarnsAndFallsBackToTcg()
+    {
+        var plan = Build(NewConfig(), acceleration: null, whpxAvailable: false);
+
+        AssertArg(plan.Arguments, "-accel", "tcg,thread=multi");
+        Assert.True(plan.Warnings.Any(w => w.Contains("Windows Hypervisor Platform", StringComparison.Ordinal)),
+            "expected WHP-missing fallback warning");
+    }
+
+    [Fact]
+    public void AccelerationDetected_WithWhp_UsesWhpx_AndNoFallbackWarning()
+    {
+        var plan = Build(NewConfig(), acceleration: null, whpxAvailable: true);
+
+        AssertArg(plan.Arguments, "-accel", "whpx");
+        Assert.DoesNotContain(plan.Warnings, w => w.Contains("software emulation", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CrossArchitectureGuest_FallsBackSilentlyToTcg()
+    {
+        // A guest no supported host architecture can hardware-accelerate.
+        var config = NewConfig(c => c = c with { System = c.System with { Architecture = "mips64" } });
+        var plan = Build(config, acceleration: null, whpxAvailable: false);
+
+        AssertArg(plan.Arguments, "-accel", "tcg,thread=multi");
+        Assert.DoesNotContain(plan.Warnings, w => w.Contains("Windows Hypervisor Platform", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -341,6 +472,33 @@ public class QemuCommandLineBuilderTests : IDisposable
         }));
 
         AssertHasArg("xhci", plan.Arguments, a => a == "qemu-xhci");
+    }
+
+    [Fact]
+    public void VirtMachine_ReplacesBareUsb_WithXhciController()
+    {
+        // `virt` has no built-in USB bus: usb-tablet cannot attach via -usb.
+        var config = NewConfig(c => c = c with
+        {
+            System = c.System with { Architecture = "aarch64", Target = "virt" },
+        });
+        var plan = Build(config);
+
+        Assert.DoesNotContain("-usb", plan.Arguments);
+        AssertHasArg("xhci", plan.Arguments, a => a == "qemu-xhci");
+        AssertHasArg("tablet", plan.Arguments, a => a == "usb-tablet");
+    }
+
+    [Fact]
+    public void PcMachine_KeepsBareUsb_Bus()
+    {
+        var plan = Build(NewConfig(c => c = c with
+        {
+            Input = c.Input with { UsbBusSupport = UtmValues.UsbBusSupport.None },
+        }));
+
+        Assert.Contains("-usb", plan.Arguments);
+        Assert.DoesNotContain(plan.Arguments, a => a == "qemu-xhci");
     }
 
     [Fact]

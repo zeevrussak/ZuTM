@@ -210,6 +210,34 @@ public sealed class UtmBundle
         }
     }
 
+    /// <summary>
+    /// Detaches every CD drive (installer ISOs boot first by design; after the
+    /// guest OS is installed the ISO must leave the boot order). Bundled ISO
+    /// copies are deleted to reclaim the space; external images are left on
+    /// disk. Returns the number of drives detached.
+    /// </summary>
+    public int DetachCdDrives()
+    {
+        var cds = Configuration.Drives
+            .Where(d => d.ImageType == UtmValues.DriveImageType.Cd)
+            .ToList();
+        if (cds.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var cd in cds)
+        {
+            DeleteDriveImage(cd);
+        }
+
+        Configuration = Configuration with
+        {
+            Drives = [.. Configuration.Drives.Where(d => d.ImageType != UtmValues.DriveImageType.Cd)],
+        };
+        return cds.Count;
+    }
+
     private string UniqueDataFileName(string desiredName)
     {
         var candidate = desiredName;
