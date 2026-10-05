@@ -16,9 +16,14 @@ opened in the other.
 ## Features
 
 - **QEMU backend** — full QEMU machine configurability, same philosophy as UTM.
+- **One-click official Linux ISOs** — pick Ubuntu, Debian, Arch, Alpine or
+  openSUSE in the new-VM wizard and ZuTM resolves the distributor's current
+  release, downloads it straight into the VM (with progress), and boots it —
+  or paste any http/https/ftp ISO URL.
 - **Hardware acceleration** — Windows Hypervisor Platform (WHPX) when
   available, TCG JIT fallback (ARM64 host → TCG x86 emulation; ARM64
-  guest-on-ARM64-host → WHPX).
+  guest-on-ARM64-host → WHPX). If the WHP feature is off, ZuTM offers to
+  enable it for you through an elevated process (UAC + DISM).
 - **UTM `.utm` bundle compatibility** — open UTM VMs on Windows, move them
   back; unknown fields round-trip losslessly
   ([spec](docs/utm-compatibility.md)).

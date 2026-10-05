@@ -41,7 +41,7 @@
 | ID | Requirement | Origin | Status | Notes / why |
 |---|---|---|---|---|
 | FR-20 | QEMU-backed emulation, any guest architecture | UTM | ✅ | TCG JIT; arch is a raw string (any QEMU build target) |
-| FR-21 | Hardware acceleration via Windows Hypervisor Platform (WHPX) | ZuTM | ✅ | x64→x86_64/i386, ARM64→aarch64 (ARM64 WHPX needs Windows 11 24H2+ with HypervisorPlatform enabled; TCG otherwise); auto-detected via `WHvGetCapability` |
+| FR-21 | Hardware acceleration via Windows Hypervisor Platform (WHPX) | ZuTM | ✅ | x64→x86_64/i386, ARM64→aarch64 (ARM64 WHPX needs Windows 11 24H2+ with HypervisorPlatform enabled; TCG otherwise); auto-detected via `WHvGetCapability`; VM details pane offers elevated one-click enablement (`dism /Enable-Feature` via UAC) while the feature is off, with restart/bcdedit guidance otherwise |
 | FR-22 | Multi-threaded TCG for multi-core guests | UTM+ | ✅ | `-accel tcg,thread=multi` unless `ForceMulticore` |
 | FR-23 | ARM64 host support | ZuTM | ✅ | WinUI app + MSI build on `windows-11-arm`; see FR-24 caveat |
 | FR-24 | Native ARM64 QEMU runtime | ZuTM | ✅ | qemu.weilnetz.de now publishes `aarch64/` ("QEMU Installer for Windows on ARM"); `fetch-qemu.ps1` auto-selects it on ARM64 hosts (SHA-512 verified, flat layout, `qemu-system-aarch64.exe` validated), and runtime discovery accepts the aarch64-native marker |
@@ -104,6 +104,9 @@
 | FR-72 | Multiple simultaneous displays per VM | UTM | 🟡 | Model + args support N displays; UI creates one |
 | FR-73 | Audio device passthrough | UTM | ✅ | Hardware string passthrough (intel-hda default) |
 | FR-74 | Display up/downscaling filter choice | UTM | ✅ | Stored/round-tripped; applied by the SPICE client |
+| FR-75 | Runtime ISO mount/eject in the VM viewer | UTM+ | ✅ | QMP `blockdev-open-tray` → `blockdev-insert/remove-medium` → `blockdev-close-tray` on stable `zutm-cd-dev-N` tray ids (E2E-proven on real QEMU 11); falls back to the board's anonymous IDE CD or a hot-plugged USB CD when the config has none |
+| FR-76 | USB host-device passthrough (live routing) | UTM+ | ✅ | Viewer checkbox list → QMP `device_add/del usb-host` (VID/PID match). QEMU 11 keeps a routed-but-absent device in pending-claim mode and attaches it on plug-in. Auto-adds xHCI where the bus is hot-pluggable; headless configs that route USB get a cold-plugged xHCI at launch (q35 `pcie.0` rejects controller hot-plug). Host-device claimability still depends on a libusb-visible (WinUSB) driver — QMP errors surface verbatim |
+| FR-77 | USB routing in VM settings & creation | UTM+ | ✅ | Persisted per-VM in `zutm-state.json` (`usbDevices`, matched by VID/PID so any unit of the model works), attached after QMP connect so routing never blocks boot (failures degrade to warnings); USB bus generation selectable at creation and in the editor |
 
 ## 7. Sharing & guest tools
 

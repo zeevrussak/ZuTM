@@ -113,7 +113,7 @@ Newer UTM builds may add `SpiceServerPort`/`SpiceServerTlsPort`/
 
 | Key | Type | Notes |
 |---|---|---|
-| `ImageName` | string? | file inside `Data/`; **absent ⇒ external image** (UTM stores a security bookmark — macOS-only; on Windows ZuTM keeps path in its own registry, not in config.plist) |
+| `ImageName` | string? | file inside `Data/`; **absent ⇒ external image** (UTM stores a security bookmark — macOS-only; on Windows ZuTM keeps path in its own registry, not in config.plist). ZuTM's official-ISO downloader writes into `Data/` like a local image; an external entry may also be an http/https/ftp URL (advanced setups), which QEMU would read through the curl block driver |
 | `ImageType` | string | `None`\|`Disk`\|`CD`\|`BIOS`\|`LinuxKernel`\|`LinuxInitrd`\|`LinuxDTB` |
 | `Interface` | string | `None`\|`IDE`\|`SCSI`\|`SD`\|`MTD`\|`Floppy`\|`PFlash`\|`VirtIO`\|`NVMe`\|`USB` (only meaningful for Disk/CD) |
 | `InterfaceVersion` | int | `1` |
@@ -178,7 +178,22 @@ is not guaranteed by plist semantics and must not matter. Therefore:
 ## 15. Windows-side extensions (ZuTM-only)
 
 ZuTM stores host-specific state (window bounds, external drive paths,
-last-run timestamps) in a **sibling** `zutm-state.json` inside the bundle —
-**never** in `config.plist` — so UTM sees a pristine file and its
-change-detection (file resource identity) is not confused. Deleting
-`zutm-state.json` must be harmless.
+last-run timestamps, **USB device routing**) in a **sibling**
+`zutm-state.json` inside the bundle — **never** in `config.plist` — so UTM
+sees a pristine file and its change-detection (file resource identity) is
+not confused. Deleting `zutm-state.json` must be harmless.
+
+USB routing (`usbDevices: [{vendorId, productId, name}]`) matches devices
+by VID/PID at start (QMP `device_add usb-host`), not by physical unit, and
+attaches after QEMU is up — QEMU 11 keeps an absent device in
+pending-claim mode and claims it the moment it is plugged in, and a
+routing failure only produces a warning. config.plist never learns
+about any of it.
+
+Streamed ISOs (`externalDrivePaths[driveIdentifier] = URL`) work the same
+way: config.plist records a plain external read-only CD; the URL behind it
+is ZuTM-private. A URL is host-independent, so cloning a bundle carries it
+over (local paths are deliberately not copied). The ordinary new-VM flow
+downloads official ISOs into `Data/` instead — QEMU's curl block driver
+cannot feed the system emulator on Windows — so URL entries only appear
+when a user or a QEMU runtime with working socket-AIO configures one.

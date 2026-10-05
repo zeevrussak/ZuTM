@@ -36,6 +36,19 @@
 
       <InfoBar IsOpen="{x:Bind Vm.HasError, Mode=OneWay}" Severity="Error" Message="{x:Bind Vm.Error, Mode=OneWay}" Margin="0,4,0,8" />
       <InfoBar IsOpen="{x:Bind Vm.HasWarning, Mode=OneWay}" Severity="Warning" Message="{x:Bind Vm.Warning, Mode=OneWay}" Margin="0,0,0,8" />
+      <InfoBar x:Name="AccelerationBar" IsOpen="False" Severity="Warning" Margin="0,0,0,8"
+               CloseButtonClick="OnAccelerationBarCloseClick"
+               AutomationProperties.AutomationId="AccelerationBar">
+        <InfoBar.Content>
+          <ProgressRing x:Name="EnableAccelerationProgress" Width="20" Height="20"
+                        IsActive="False" Visibility="Collapsed" />
+        </InfoBar.Content>
+        <InfoBar.ActionButton>
+          <Button x:Name="EnableAccelerationButton" Content="Enable…" Click="OnEnableAccelerationClick"
+                  AutomationProperties.AutomationId="EnableWhpButton"
+                  ToolTipService.ToolTip="Runs an elevated DISM command; Windows asks for administrator consent. A restart is required afterwards." />
+        </InfoBar.ActionButton>
+      </InfoBar>
 
       <TextBlock Text="System" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
       <local:SettingsRow Label="Architecture" Value="{x:Bind Vm.Architecture, Mode=OneWay}" />
@@ -55,6 +68,54 @@
       <Button Content="Eject installer ISO…" Click="OnEjectIsoClick" Margin="0,4,0,0"
               Visibility="{x:Bind local:Converters.ToVisibility(HasEjectableIso), Mode=OneWay}"
               ToolTipService.ToolTip="Detach the installer ISO and delete its bundle copy, so the VM boots from disk on the next start" />
+
+      <!-- Live removable media & USB routing (running VM, over QMP) -->
+      <StackPanel Spacing="4"
+                  Visibility="{x:Bind local:Converters.ToVisibility(CanHotPlug), Mode=OneWay}">
+        <TextBlock Text="Removable media" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
+        <ItemsControl ItemsSource="{x:Bind MediaRows, Mode=OneWay}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:CdTrayRow">
+              <Grid ColumnSpacing="8" Padding="0,2">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Spacing="0">
+                  <TextBlock Text="{x:Bind Title}" />
+                  <TextBlock Text="{x:Bind Detail}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                             TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="Eject" VerticalAlignment="Center"
+                        IsEnabled="{x:Bind HasMedia}" Click="OnTrayEjectClick"
+                        AutomationProperties.AutomationId="EjectTrayButton"
+                        ToolTipService.ToolTip="Eject this drive's medium while the VM runs" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Button Content="Mount ISO…" Click="OnMountIsoClick" Margin="0,4,0,0" HorizontalAlignment="Left"
+                AutomationProperties.AutomationId="MountIsoButton"
+                ToolTipService.ToolTip="Insert an ISO into an empty drive, replace the current medium, or hot-plug a USB CD if this VM has no CD drive" />
+
+        <TextBlock Text="USB devices" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,4" />
+        <Button Content="Refresh" Click="OnUsbRefreshClick" HorizontalAlignment="Left"
+                AutomationProperties.AutomationId="UsbRefreshButton"
+                ToolTipService.ToolTip="Re-scan host USB devices and the guest's routed devices" />
+        <ItemsControl ItemsSource="{x:Bind UsbRows, Mode=OneWay}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:UsbHostRow">
+              <CheckBox Content="{x:Bind Title}" IsChecked="{x:Bind IsAttached, Mode=OneTime}"
+                        Checked="OnUsbAttach" Unchecked="OnUsbDetach" Margin="0,2,0,2"
+                        ToolTipService.ToolTip="{x:Bind Detail}"
+                        AutomationProperties.AutomationId="UsbDeviceToggle" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="Checked devices are routed into the guest right away. To route a device on every start, use Edit ▸ USB routing."
+                   Style="{StaticResource CaptionTextBlockStyle}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+      </StackPanel>
 
       <TextBlock Text="Display" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
       <local:SettingsRow Label="Graphics" Value="{x:Bind DisplayText, Mode=OneWay}" />

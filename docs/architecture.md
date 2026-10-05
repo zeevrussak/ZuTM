@@ -78,7 +78,14 @@ compatibility layer is specified in
 | WHPX feature off | any | TCG |
 
 `AcceleratorDetector` probes `WHvGetCapability(HypervisorPresent)` via
-P/Invoke (arm64-safe, no x64-only imports).
+P/Invoke (arm64-safe, no x64-only imports), classifying the failure as
+"feature off" (WHv API not exported) or "hypervisor not running" (exported
+but `HypervisorPresent` false). The VM details pane turns this into an
+actionable notice: `WhpFeature` offers one-click enablement for the
+`HypervisorPlatform` optional feature by running
+`dism /Online /Enable-Feature /FeatureName:HypervisorPlatform /All /NoRestart`
+in an elevated process (UAC collects consent; ZuTM itself stays
+un-elevated), and reports the pending-restart state afterwards.
 
 ### 3.4 Online updates
 1. `UpdateChecker` → GitHub `releases/latest` (repo configurable).
@@ -88,6 +95,28 @@ P/Invoke (arm64-safe, no x64-only imports).
    SHA-256 (GitHub asset digest) + size verification, tamper ⇒ delete + refuse.
 5. `msiexec /i` major-upgrade (in-place; old version uninstalled by MSI).
    Code signing (Authenticode) is the release pipeline's job.
+
+### 3.5 Official Linux installer ISOs
+The new-VM dialog offers official Linux installers (Ubuntu LTS desktop/server,
+Debian netinst, Arch, Alpine virt, openSUSE Tumbleweed net-install) plus a
+free-form URL box:
+
+- `DistroIsoCatalog` holds the distributors' own index/direct URLs; index
+  entries resolve at creation time to the newest release on the listing
+  (distributors keep several point releases online and purge old ones, so
+  file names are never hard-coded).
+- The resolved ISO **downloads into the bundle's `Data\`** via
+  `RemoteIsoDownloader` (streamed, progress in the dialog, `.part` staging so
+  a cancelled download never looks complete). It then attaches like any
+  local CD — `DetachCdDrives` reclaims the space after install, clones copy it.
+- Why a download instead of QEMU's curl block driver streaming the ISO from
+  the distributor at run time: on Windows, libcurl's socket cannot be
+  registered with QEMU's Win32 AIO loop ("fd is not a socket, AIO
+  implementation is missing" — known upstream limitation; only qemu-img's
+  synchronous path works). The `QemuCommandLineBuilder` still supports
+  `file.driver=https,file.url=…` backends for runtimes where this works;
+  `zutm-state.json` `externalDrivePaths` accepts URLs for such advanced
+  setups, and clones carry them over.
 
 ## 4. Deployment
 
