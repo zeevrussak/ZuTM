@@ -13,6 +13,19 @@ public enum QemuAcceleration
     Tcg,
 }
 
+/// <summary>Outcome of probing the Windows Hypervisor Platform API surface.</summary>
+internal enum WhvProbe
+{
+    /// <summary>WinHvPlatform.dll is missing or lacks the WHv exports — the optional feature is off.</summary>
+    ApiUnavailable,
+
+    /// <summary>WHv API present but no hypervisor is running (pending restart, hypervisorlaunchtype off, or firmware virtualization disabled).</summary>
+    HypervisorAbsent,
+
+    /// <summary>A hypervisor is present; WHPX partitions can be created.</summary>
+    HypervisorPresent,
+}
+
 /// <summary>
 /// Detects the best available QEMU acceleration on this host.
 /// WHPX acceleration requires the Windows Hypervisor Platform optional
@@ -38,33 +51,42 @@ public sealed class AcceleratorDetector
     /// (a direct P/Invoke there throws EntryPointNotFoundException), which must read
     /// as "not available", never escape as an error.
     /// </summary>
-    public static bool IsWindowsHypervisorPlatformAvailable()
+    public static bool IsWindowsHypervisorPlatformAvailable() => ProbeWhvApi() == WhvProbe.HypervisorPresent;
+
+    /// <summary>
+    /// Classifies the WHv API surface so remediation UI can tell "feature off"
+    /// (nothing exported to enable) apart from "feature on but hypervisor not
+    /// running" (exported, but HypervisorPresent reports false).
+    /// </summary>
+    internal static WhvProbe ProbeWhvApi()
     {
         if (!OperatingSystem.IsWindows())
         {
-            return false;
+            return WhvProbe.ApiUnavailable;
         }
 
         if (!NativeLibrary.TryLoad("WinHvPlatform.dll", out var handle))
         {
-            return false; // WHP optional feature absent on this host
+            return WhvProbe.ApiUnavailable; // WHP optional feature absent on this host
         }
 
         try
         {
             if (!NativeLibrary.TryGetExport(handle, "WhvGetCapability", out var address))
             {
-                return false; // stub DLL without the WHv exports — feature not enabled
+                return WhvProbe.ApiUnavailable; // stub DLL without the WHv exports — feature not enabled
             }
 
             var whvGetCapability = Marshal.GetDelegateForFunctionPointer<WhvGetCapabilityDelegate>(address);
 
             // WHvCapabilityCodeHypervisorPresent = 0; result is a ULONG boolean.
-            return whvGetCapability(0, out var present, sizeof(ulong), out _) == 0 && present != 0;
+            return whvGetCapability(0, out var present, sizeof(ulong), out _) == 0 && present != 0
+                ? WhvProbe.HypervisorPresent
+                : WhvProbe.HypervisorAbsent;
         }
         catch (Exception ex) when (ex is EntryPointNotFoundException or BadImageFormatException or MarshalDirectiveException)
         {
-            return false; // unreadable/unexpected export surface — treat as unavailable
+            return WhvProbe.ApiUnavailable; // unreadable/unexpected export surface — treat as feature-off
         }
         finally
         {
@@ -108,7 +130,8 @@ public sealed class AcceleratorDetector
 
         return "Windows Hypervisor Platform is not available, so this VM runs with software "
             + "emulation (TCG), which is much slower. To enable hardware acceleration, turn on the "
-            + "'Windows Hypervisor Platform' feature in Windows (Run: optionalfeatures.exe), then restart.";
+            + "'Windows Hypervisor Platform' feature — see the acceleration notice in the VM details "
+            + "pane, or Run: optionalfeatures.exe — then restart Windows.";
     }
 
     /// <summary>True when the guest architecture class can run under the host's WHPX partition.</summary>
