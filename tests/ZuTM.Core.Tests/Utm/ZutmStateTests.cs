@@ -45,6 +45,29 @@ public class ZutmStateTests : IDisposable
     }
 
     [Fact]
+    public void SaveLoad_RoundTripsUsbRouting()
+    {
+        var state = new ZutmState
+        {
+            UsbDevices =
+            [
+                new ZutmUsbDevice { VendorId = 0x0781, ProductId = 0x5567, Name = "SanDisk Cruzer" },
+                new ZutmUsbDevice { VendorId = 0x046D, ProductId = 0xC52B },
+            ],
+        };
+
+        state.Save(StatePath);
+        var loaded = ZutmState.TryLoad(StatePath);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(2, loaded!.UsbDevices.Count);
+        Assert.Equal(0x0781, loaded.UsbDevices[0].VendorId);
+        Assert.Equal(0x5567, loaded.UsbDevices[0].ProductId);
+        Assert.Equal("SanDisk Cruzer", loaded.UsbDevices[0].Name);
+        Assert.Equal("USB device 046D:C52B", loaded.UsbDevices[1].DisplayName);
+    }
+
+    [Fact]
     public void Save_AlwaysWritesCurrentVersion()
     {
         new ZutmState { Version = 0 }.Save(StatePath);

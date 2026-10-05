@@ -1,5 +1,6 @@
 // ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
 
+using ZuTM.Core.Net;
 using ZuTM.Core.Plist;
 
 namespace ZuTM.Core.Utm;
@@ -154,7 +155,11 @@ public sealed class UtmBundle
             && fileName.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
     }
 
-    /// <summary>Absolute path of a drive image: bundle Data/&lt;ImageName&gt;, or the external path from ZuTM state.</summary>
+    /// <summary>
+    /// Absolute path of a drive image: bundle Data/&lt;ImageName&gt;, the external
+    /// path from ZuTM state, or the image's http(s)/ftp URL when the drive
+    /// streams straight off a network location.
+    /// </summary>
     public string? ResolveDriveImagePath(UtmDrive drive)
     {
         if (!drive.IsExternal)
@@ -168,9 +173,47 @@ public sealed class UtmBundle
             return File.Exists(bundled) ? bundled : null;
         }
 
-        return State.ExternalDrivePaths.TryGetValue(drive.Identifier, out var external) && File.Exists(external)
-            ? external
-            : null;
+        if (!State.ExternalDrivePaths.TryGetValue(drive.Identifier, out var external))
+        {
+            return null;
+        }
+
+        // Remote images have no local file to exist-check; QEMU streams them.
+        return RemoteImage.IsRemoteLocation(external) || File.Exists(external) ? external : null;
+    }
+
+    /// <summary>
+    /// Downloads a distributor ISO straight into the bundle's Data/ directory
+    /// and returns the read-only CD drive for it. (QEMU on Windows cannot
+    /// stream network images at run time, so ZuTM fetches the ISO at creation;
+    /// the drive then behaves exactly like a locally picked one.) The bundle
+    /// must be saved to persist the drive.
+    /// </summary>
+    public async Task<UtmDrive> ImportRemoteIsoAsync(
+        string url,
+        string driveInterface,
+        IProgress<RemoteIsoDownloadProgress>? progress = null,
+        RemoteIsoDownloader? downloader = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(url);
+        if (RemoteImage.GetValidationError(url) is { } error)
+        {
+            throw new ArgumentException(error, nameof(url));
+        }
+
+        Directory.CreateDirectory(DataDirectory);
+        var fileName = UniqueDataFileName(RemoteImage.SuggestedFileName(url));
+        await (downloader ?? new RemoteIsoDownloader())
+            .DownloadAsync(url, Path.Combine(DataDirectory, fileName), progress, cancellationToken)
+            .ConfigureAwait(false);
+        return new UtmDrive
+        {
+            ImageName = fileName,
+            ImageType = UtmValues.DriveImageType.Cd,
+            Interface = driveInterface,
+            IsReadOnly = true,
+        };
     }
 
     /// <summary>Copies a disk image into the bundle's Data/ directory and returns the new drive entry.</summary>
@@ -293,6 +336,16 @@ public sealed class UtmBundle
             Path.GetFullPath(targetBundlePath),
             configuration,
             Path.Combine(targetBundlePath, UtmBundleFiles.DataDirectory));
+
+        // Remote URLs are host-independent, so a clone keeps streaming from the
+        // same distributor URL; local external paths stay machine-specific and
+        // are not copied.
+        clone.State = State with
+        {
+            ExternalDrivePaths = new Dictionary<string, string>(
+                State.ExternalDrivePaths.Where(kv => RemoteImage.IsRemoteLocation(kv.Value))),
+        };
+
         clone.Save();
 
         // Copy every payload file verbatim (qcow2 disks, efi_vars, logs are skipped).

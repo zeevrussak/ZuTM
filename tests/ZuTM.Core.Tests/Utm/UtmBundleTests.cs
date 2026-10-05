@@ -1,6 +1,8 @@
 // ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
 
+using ZuTM.Core.Net;
 using ZuTM.Core.Plist;
+using ZuTM.Core.Tests.Net;
 using ZuTM.Core.Utm;
 using Xunit;
 
@@ -247,6 +249,118 @@ public sealed class UtmBundleTests : IDisposable
         var path = BundlePath("Empty.utm");
         Directory.CreateDirectory(path);
         Assert.Throws<FileNotFoundException>(() => UtmBundle.Load(path));
+    }
+
+    [Fact]
+    public void ResolveDriveImagePath_ReturnsRemoteUrl_ForExternalRemoteDrives()
+    {
+        WriteMinimalBundle(BundlePath());
+        var bundle = UtmBundle.Load(BundlePath());
+        const string url = "https://releases.ubuntu.com/noble/ubuntu-24.04.3-desktop-amd64.iso";
+        var drive = new UtmDrive { Identifier = "cd-remote", ImageType = UtmValues.DriveImageType.Cd, IsReadOnly = true };
+        bundle.Configuration = bundle.Configuration with { Drives = [drive] };
+        bundle.State = bundle.State with
+        {
+            ExternalDrivePaths = new Dictionary<string, string> { [drive.Identifier] = url },
+        };
+        bundle.Save();
+
+        var reloaded = UtmBundle.Load(BundlePath());
+        Assert.True(reloaded.Configuration.Drives[0].IsExternal); // UTM sees a plain external CD
+        Assert.Equal(url, reloaded.ResolveDriveImagePath(reloaded.Configuration.Drives[0]));
+    }
+
+    [Fact]
+    public async Task ImportRemoteIsoAsync_DownloadsIntoBundle_AndReturnsCdDrive()
+    {
+        WriteMinimalBundle(BundlePath());
+        var bundle = UtmBundle.Load(BundlePath());
+        var payload = "FAKE-ISO-CONTENT"u8.ToArray();
+        var downloader = new RemoteIsoDownloader(StubHttp.Serve(payload));
+
+        var progressReports = new ProgressCollector();
+        var cd = await bundle.ImportRemoteIsoAsync(
+            "https://releases.ubuntu.com/noble/ubuntu-24.04.3-desktop-amd64.iso",
+            UtmValues.DriveInterface.Ide,
+            progressReports,
+            downloader: downloader);
+
+        Assert.Equal(UtmValues.DriveImageType.Cd, cd.ImageType);
+        Assert.Equal(UtmValues.DriveInterface.Ide, cd.Interface);
+        Assert.True(cd.IsReadOnly);
+        Assert.Equal("ubuntu-24.04.3-desktop-amd64.iso", cd.ImageName);
+        Assert.Equal(payload, File.ReadAllBytes(Path.Combine(bundle.DataDirectory, cd.ImageName!)));
+        Assert.False(File.Exists(Path.Combine(bundle.DataDirectory, cd.ImageName + ".part")));
+        var last = Assert.Single(progressReports.Reports);
+        Assert.Equal(payload.Length, last.BytesReceived);
+        Assert.Equal(payload.Length, last.TotalBytes);
+    }
+
+    [Fact]
+    public async Task ImportRemoteIsoAsync_RejectsNonStreamableUrls_WithoutDownloading()
+    {
+        WriteMinimalBundle(BundlePath());
+        var bundle = UtmBundle.Load(BundlePath());
+
+        await Assert.ThrowsAsync<ArgumentException>(() => bundle.ImportRemoteIsoAsync(
+            "C:\\isos\\ubuntu.iso", UtmValues.DriveInterface.Ide));
+        Assert.DoesNotContain(
+            Directory.GetFiles(bundle.DataDirectory),
+            f => f.EndsWith(".iso", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".part", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void DetachCdDrives_RemovesRemoteUrlDrive_WithoutTouchingLocalFiles()
+    {
+        WriteMinimalBundle(BundlePath());
+        var bundle = UtmBundle.Load(BundlePath());
+        var cd = new UtmDrive { Identifier = "cd-remote", ImageType = UtmValues.DriveImageType.Cd, IsReadOnly = true };
+        bundle.Configuration = bundle.Configuration with { Drives = [cd, .. bundle.Configuration.Drives] };
+        bundle.State = bundle.State with
+        {
+            ExternalDrivePaths = new Dictionary<string, string> { [cd.Identifier] = "https://releases.ubuntu.com/noble/ubuntu-24.04.3-desktop-amd64.iso" },
+        };
+
+        var detached = bundle.DetachCdDrives();
+
+        Assert.Equal(1, detached);
+        Assert.DoesNotContain(bundle.Configuration.Drives, d => d.ImageType == UtmValues.DriveImageType.Cd);
+    }
+
+    [Fact]
+    public void Clone_CarriesRemoteUrls_ButNotLocalExternalPaths()
+    {
+        WriteMinimalBundle(BundlePath());
+        var bundle = UtmBundle.Load(BundlePath());
+        var remoteCd = new UtmDrive { Identifier = "cd-remote", ImageType = UtmValues.DriveImageType.Cd, IsReadOnly = true };
+        bundle.Configuration = bundle.Configuration with { Drives = [remoteCd] };
+        bundle.State = bundle.State with
+        {
+            ExternalDrivePaths = new Dictionary<string, string>
+            {
+                [remoteCd.Identifier] = "https://releases.ubuntu.com/noble/ubuntu-24.04.3-desktop-amd64.iso",
+                ["local-ext"] = Path.Combine(_tempRoot, "outside.qcow2"),
+            },
+        };
+
+        var clone = bundle.Clone();
+
+        Assert.Equal(
+            "https://releases.ubuntu.com/noble/ubuntu-24.04.3-desktop-amd64.iso",
+            clone.State.ExternalDrivePaths[remoteCd.Identifier]);
+        Assert.False(clone.State.ExternalDrivePaths.ContainsKey("local-ext"));
+        var cloneRemoteDrive = Assert.Single(
+            clone.Configuration.Drives.Where(d => d.ImageType == UtmValues.DriveImageType.Cd));
+        Assert.Equal(
+            "https://releases.ubuntu.com/noble/ubuntu-24.04.3-desktop-amd64.iso",
+            clone.ResolveDriveImagePath(cloneRemoteDrive));
+    }
+
+    private sealed class ProgressCollector : IProgress<RemoteIsoDownloadProgress>
+    {
+        public List<RemoteIsoDownloadProgress> Reports { get; } = [];
+
+        public void Report(RemoteIsoDownloadProgress value) => Reports.Add(value);
     }
 
     public void Dispose()

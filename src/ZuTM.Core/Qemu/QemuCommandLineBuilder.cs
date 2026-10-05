@@ -5,6 +5,7 @@
 // platforms agree; Windows divergences produce Warnings, never silent
 // behavior changes.
 
+using ZuTM.Core.Net;
 using ZuTM.Core.Utm;
 
 namespace ZuTM.Core.Qemu;
@@ -68,6 +69,7 @@ public sealed class QemuCommandLineBuilder
     private readonly Func<UtmDrive, string?> _resolveImagePath;
     private readonly QemuAcceleration _acceleration;
     private readonly string? _efiVarsPath;
+    private readonly bool _ensureUsbBus;
     private readonly List<string> _arguments = [];
     private readonly List<string> _warnings = [];
 
@@ -78,7 +80,8 @@ public sealed class QemuCommandLineBuilder
         Func<UtmDrive, string?>? resolveImagePath = null,
         QemuAcceleration? acceleration = null,
         string? efiVarsPath = null,
-        bool? whpxAvailable = null)
+        bool? whpxAvailable = null,
+        bool ensureUsbBus = false)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -88,6 +91,7 @@ public sealed class QemuCommandLineBuilder
         _ports = ports;
         _resolveImagePath = resolveImagePath ?? (_ => null);
         _efiVarsPath = efiVarsPath;
+        _ensureUsbBus = ensureUsbBus;
         if (acceleration is not null)
         {
             _acceleration = acceleration.Value;
@@ -268,6 +272,17 @@ public sealed class QemuCommandLineBuilder
 
     private void AddDrive(UtmDrive drive, string? path, int index, int? bootIndex)
     {
+        // -bios/-kernel/-initrd/-dtb only accept local files; network streaming
+        // (QEMU curl block driver) works for Disk/CD images only.
+        if (path is not null
+            && drive.ImageType is UtmValues.DriveImageType.Bios or UtmValues.DriveImageType.LinuxKernel
+                or UtmValues.DriveImageType.LinuxInitrd or UtmValues.DriveImageType.LinuxDtb
+            && RemoteImage.IsRemoteLocation(path))
+        {
+            _warnings.Add($"Drive {index} ({drive.ImageType}) points at a network URL; QEMU cannot stream this image type and it was skipped.");
+            return;
+        }
+
         switch (drive.ImageType)
         {
             case UtmValues.DriveImageType.Bios:
@@ -324,7 +339,10 @@ public sealed class QemuCommandLineBuilder
             return;
         }
 
-        var format = DiskImageExtensions.QemuFormatForFileName(path);
+        var isRemote = RemoteImage.IsRemoteLocation(path);
+        // Strip any query string so extension detection sees the image name.
+        var format = DiskImageExtensions.QemuFormatForFileName(
+            isRemote ? path.Split('?', '#')[0] : path);
         var id = $"zutm-drive-{index}";
         string option;
         string? frontendDevice;
@@ -333,7 +351,7 @@ public sealed class QemuCommandLineBuilder
         {
             // Explicit IDE frontend so the disk participates in bootindex
             // ordering (a `if=ide` backend device cannot carry a bootindex).
-            option = $"id={id},if=none,format={format},file={path}";
+            option = $"id={id},if=none,format={format},{FileOption(path)}";
             frontendDevice = $"ide-hd,drive={id}";
         }
         else
@@ -347,7 +365,7 @@ public sealed class QemuCommandLineBuilder
                 UtmValues.DriveInterface.Pflash => "pflash",
                 _ => "none",
             };
-            option = $"id={id},if={@if},format={format},file={path}";
+            option = $"id={id},if={@if},format={format},{FileOption(path)}";
             frontendDevice = drive.Interface switch
             {
                 UtmValues.DriveInterface.Virtio => $"virtio-blk-pci,drive={id}",
@@ -357,9 +375,15 @@ public sealed class QemuCommandLineBuilder
             };
         }
 
-        if (drive.IsReadOnly)
+        if (drive.IsReadOnly || isRemote)
         {
+            // The curl block driver cannot write: a streaming image is
+            // read-only whether or not the drive asked for it.
             option += ",readonly=on";
+            if (!drive.IsReadOnly)
+            {
+                _warnings.Add($"Disk drive {index} streams its image from {ImageHost(path)}; network images are read-only.");
+            }
         }
 
         _arguments.Add("-drive");
@@ -397,20 +421,28 @@ public sealed class QemuCommandLineBuilder
                 // No IDE/SATA on `virt` machines: a SCSI CD behind a virtio-scsi
                 // controller is the UTM-equivalent CD transport there.
                 UtmValues.DriveInterface.Virtio => $"scsi-cd,drive={id},bus=zutm-scsi-{index}.0",
-                UtmValues.DriveInterface.Usb => $"usb-storage,drive={id}",
+                UtmValues.DriveInterface.Usb => $"usb-storage,drive={id},removable=on",
                 // IDE/None: explicit IDE CD frontend (q35's AHCI provides the bus).
                 _ => $"ide-cd,drive={id}",
             };
+            // Stable frontend id — QMP blockdev-insert/remove-medium (runtime ISO
+            // mount/eject in the VM viewer) addresses the tray through it.
+            frontendDevice += $",id=zutm-cd-dev-{index}";
         }
 
         if (path is not null)
         {
-            option += $",file={path}";
+            option += $",{FileOption(path)}";
         }
 
-        if (drive.IsReadOnly)
+        if (drive.IsReadOnly || RemoteImage.IsRemoteLocation(path))
         {
             option += ",readonly=on";
+        }
+
+        if (path is not null && RemoteImage.IsRemoteLocation(path))
+        {
+            _warnings.Add($"CD drive {index} streams its installer ISO from {ImageHost(path)} over the network — booting and installing run at network speed and need connectivity.");
         }
 
         _arguments.Add("-drive");
@@ -433,6 +465,19 @@ public sealed class QemuCommandLineBuilder
             _arguments.Add(frontendDevice);
         }
     }
+
+    /// <summary>
+    /// The -drive file option for one image: a plain local path, or the dotted
+    /// sub-options that route a network URL through QEMU's curl block driver
+    /// so the guest streams blocks straight off the distributor's server.
+    /// </summary>
+    private static string FileOption(string path) =>
+        RemoteImage.IsRemoteLocation(path)
+            ? $"file.driver={RemoteImage.QemuBlockDriver(path)},file.url={path}"
+            : $"file={path}";
+
+    private static string ImageHost(string location) =>
+        Uri.TryCreate(location, UriKind.Absolute, out var uri) ? uri.Host : location;
 
     private void AddNetworkArguments()
     {
@@ -537,6 +582,15 @@ public sealed class QemuCommandLineBuilder
         var input = _configuration.Input;
         if (_configuration.Displays.Count == 0)
         {
+            // Headless VMs get no input devices — but a VM that routes USB
+            // host devices still needs a controller. It must be cold-plugged:
+            // q35's pcie.0 rejects runtime controller hot-plug entirely.
+            if (_ensureUsbBus)
+            {
+                _arguments.Add("-device");
+                _arguments.Add("qemu-xhci");
+            }
+
             return;
         }
 

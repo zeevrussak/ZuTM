@@ -35,7 +35,8 @@ public sealed class VmLauncher(QemuRuntime runtime, RuntimeRegistry? registry = 
             ports,
             bundle.ResolveDriveImagePath,
             acceleration,
-            efiVarsPath).Build();
+            efiVarsPath,
+            ensureUsbBus: bundle.State.UsbDevices.Count > 0).Build();
     }
 
     /// <summary>Starts a VM: plan → QEMU process → QMP connect → registry record.</summary>
@@ -52,6 +53,26 @@ public sealed class VmLauncher(QemuRuntime runtime, RuntimeRegistry? registry = 
 
         var process = await QemuVmProcess.StartAsync(plan, logPath, cancellationToken);
 
+        // USB devices routed in the VM's settings are attached right after QMP
+        // connects (not on the command line, which would refuse to boot when a
+        // routed device happens to be unplugged). Failures degrade to warnings.
+        var warnings = new List<string>(plan.Warnings);
+        try
+        {
+            if (process.Qmp is { } qmp && bundle.State.UsbDevices.Count > 0)
+            {
+                warnings.AddRange(await qmp.AttachRoutedUsbDevicesAsync(bundle.State.UsbDevices, cancellationToken));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"USB routing could not run: {ex.Message}");
+        }
+
         registry?.RecordStart(new VmRuntimeEntry
         {
             Uuid = bundle.Id.ToString("D"),
@@ -62,7 +83,7 @@ public sealed class VmLauncher(QemuRuntime runtime, RuntimeRegistry? registry = 
             StartedUtc = DateTimeOffset.UtcNow,
         });
 
-        return new VmLaunchResult(process, ports, plan.Warnings);
+        return new VmLaunchResult(process, ports, warnings);
     }
 
     /// <summary>Connects to a VM recorded in the runtime registry (CLI path).</summary>

@@ -41,8 +41,22 @@ public class QemuCommandLineBuilderTests : IDisposable
         Func<UtmDrive, string?>? resolver = null,
         QemuAcceleration? acceleration = QemuAcceleration.Tcg,
         string? efiVars = null,
-        bool? whpxAvailable = null) =>
-        new QemuCommandLineBuilder(config, CreateRuntime(), Ports(), resolver, acceleration, efiVars, whpxAvailable).Build();
+        bool? whpxAvailable = null,
+        bool ensureUsbBus = false) =>
+        new QemuCommandLineBuilder(config, CreateRuntime(), Ports(), resolver, acceleration, efiVars, whpxAvailable, ensureUsbBus).Build();
+
+    [Fact]
+    public void HeadlessVm_WithRoutedUsb_GetsColdUsbController_NoInputDevices()
+    {
+        var config = NewConfig(c => c = c with { Displays = [] });
+
+        var plan = Build(config, ensureUsbBus: true);
+
+        // Cold-plugged xHCI (q35 pcie.0 refuses runtime controller hot-plug),
+        // but no input devices — headless stays headless.
+        AssertContainsArgument(plan, "qemu-xhci");
+        Assert.DoesNotContain(plan.Arguments, a => a == "usb-tablet");
+    }
 
     private static int IndexOf(IReadOnlyList<string> args, string flag)
     {
@@ -265,7 +279,7 @@ public class QemuCommandLineBuilderTests : IDisposable
         var plan = Build(config);
 
         AssertHasArg("empty cdrom", plan.Arguments, a => a == "id=zutm-cd-0,if=none,media=cdrom");
-        AssertHasArg("ide cd device", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-0,bootindex=0");
+        AssertHasArg("ide cd device", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-0,id=zutm-cd-dev-0,bootindex=0");
     }
 
     [Fact]
@@ -290,7 +304,7 @@ public class QemuCommandLineBuilderTests : IDisposable
 
         AssertHasArg("cdrom backend", plan.Arguments, a => a == "id=zutm-cd-0,if=none,media=cdrom,file=C:\\vm\\Data\\install.iso,readonly=on");
         AssertHasArg("scsi controller", plan.Arguments, a => a == "virtio-scsi-pci,id=zutm-scsi-0");
-        AssertHasArg("scsi cd device", plan.Arguments, a => a == "scsi-cd,drive=zutm-cd-0,bus=zutm-scsi-0.0,bootindex=0");
+        AssertHasArg("scsi cd device", plan.Arguments, a => a == "scsi-cd,drive=zutm-cd-0,bus=zutm-scsi-0.0,id=zutm-cd-dev-0,bootindex=0");
     }
 
     [Fact]
@@ -307,7 +321,7 @@ public class QemuCommandLineBuilderTests : IDisposable
 
         var plan = Build(config, drive => @$"C:\vm\Data\{drive.ImageName}");
 
-        AssertHasArg("cd boots first", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-0,bootindex=0");
+        AssertHasArg("cd boots first", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-0,id=zutm-cd-dev-0,bootindex=0");
         AssertHasArg("disk boots second", plan.Arguments, a => a == "virtio-blk-pci,drive=zutm-drive-1,bootindex=1");
     }
 
@@ -326,7 +340,56 @@ public class QemuCommandLineBuilderTests : IDisposable
         var plan = Build(config, drive => @$"C:\vm\Data\{drive.ImageName}");
 
         AssertHasArg("disk boots first", plan.Arguments, a => a == "virtio-blk-pci,drive=zutm-drive-0,bootindex=0");
-        AssertHasArg("cd boots second", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-1,bootindex=1");
+        AssertHasArg("cd boots second", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-1,id=zutm-cd-dev-1,bootindex=1");
+    }
+
+    [Fact]
+    public void RemoteCdImage_StreamsThroughCurlBlockDriver()
+    {
+        const string url = "https://releases.ubuntu.com/noble/ubuntu-24.04.3-desktop-amd64.iso";
+        var config = NewConfig(c => c = c with
+        {
+            Drives = [new UtmDrive { ImageType = UtmValues.DriveImageType.Cd, Interface = UtmValues.DriveInterface.Ide, IsReadOnly = true }],
+        });
+
+        var plan = Build(config, _ => url);
+
+        AssertHasArg("curl cd backend", plan.Arguments, a => a ==
+            $"id=zutm-cd-0,if=none,media=cdrom,file.driver=https,file.url={url},readonly=on");
+        AssertHasArg("ide cd device", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-0,id=zutm-cd-dev-0,bootindex=0");
+        Assert.Contains(plan.Warnings, w => w.Contains("streams its installer ISO", StringComparison.Ordinal)
+            && w.Contains("releases.ubuntu.com", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RemoteDiskImage_IsForcedReadOnly_WithWarning()
+    {
+        const string url = "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.qcow2";
+        var config = NewConfig(c => c = c with
+        {
+            Drives = [new UtmDrive { ImageType = UtmValues.DriveImageType.Disk, Interface = UtmValues.DriveInterface.Virtio, IsReadOnly = false }],
+        });
+
+        var plan = Build(config, _ => url);
+
+        AssertHasArg("curl disk backend", plan.Arguments, a => a ==
+            $"id=zutm-drive-0,if=none,format=qcow2,file.driver=https,file.url={url},readonly=on");
+        AssertHasArg("virtio disk device", plan.Arguments, a => a == "virtio-blk-pci,drive=zutm-drive-0,bootindex=0");
+        Assert.Contains(plan.Warnings, w => w.Contains("network images are read-only", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RemoteBootLoaderImages_AreSkippedWithWarning()
+    {
+        var config = NewConfig(c => c = c with
+        {
+            Drives = [new UtmDrive { ImageType = UtmValues.DriveImageType.LinuxKernel, Interface = UtmValues.DriveInterface.None }],
+        });
+
+        var plan = Build(config, _ => "https://example.com/vmlinuz");
+
+        Assert.Equal(-1, IndexOf(plan.Arguments, "-kernel"));
+        Assert.Contains(plan.Warnings, w => w.Contains("cannot stream this image type", StringComparison.Ordinal));
     }
 
     [Fact]

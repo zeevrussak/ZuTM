@@ -4,6 +4,7 @@
     x:Class="ZuTM.App.NewVmDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:ZuTM.App.ViewModels"
     Title="New Virtual Machine"
     PrimaryButtonText="Create"
     SecondaryButtonText="Cancel"
@@ -31,6 +32,35 @@
 
       <CheckBox x:Name="UefiBox" Content="UEFI boot" IsChecked="True" />
 
+      <TextBlock Text="USB" Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+      <ComboBox x:Name="UsbBusBox" Header="USB bus support" SelectedIndex="1" MinWidth="200"
+                ToolTipService.ToolTip="Guest-side USB controller generation. USB 3.0 (xHCI) is recommended; Default uses the machine's native bus.">
+        <ComboBoxItem Content="Default" Tag="Default" />
+        <ComboBoxItem Content="USB 3.0 (recommended)" Tag="USB 3.0" />
+        <ComboBoxItem Content="USB 2.0" Tag="USB 2.0" />
+        <ComboBoxItem Content="None" Tag="None" />
+      </ComboBox>
+
+      <TextBlock Text="USB devices routed into this VM on start" Margin="0,4,0,0" />
+      <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="2">
+          <ItemsControl x:Name="UsbRouteList">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:UsbHostRow">
+                <CheckBox Content="{x:Bind Title}" IsChecked="{x:Bind IsAttached, Mode=OneTime}"
+                          Checked="OnUsbRouteChecked" Unchecked="OnUsbRouteUnchecked"
+                          ToolTipService.ToolTip="{x:Bind Detail}"
+                          AutomationProperties.AutomationId="NewUsbRouteToggle" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock x:Name="UsbStatusText" Style="{StaticResource CaptionTextBlockStyle}"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+      </ScrollViewer>
+      <Button Content="Rescan host devices" Click="OnUsbRescanClick" HorizontalAlignment="Left" />
+
       <TextBlock Text="Storage" Style="{ThemeResource SubtitleTextBlockStyle}" />
 
       <NumberBox x:Name="DiskBox" Header="Disk size (GiB, 0 = none)" Value="20" Minimum="0" Maximum="2048" SpinButtonPlacementMode="Compact" />
@@ -55,12 +85,30 @@
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <TextBox x:Name="IsoBox" Grid.Column="0" Header="Installer ISO (optional)"
+        <TextBox x:Name="IsoBox" Grid.Column="0" Header="Installer ISO file (optional)"
                  PlaceholderText="No ISO — boots from disk" IsReadOnly="True" />
         <Button x:Name="BrowseIsoButton" Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="OnBrowseIsoClick"
                 ToolTipService.ToolTip="Pick an ISO to boot first — e.g. a Windows or Linux installer" />
         <Button x:Name="ClearIsoButton" Grid.Column="2" Content="Clear" VerticalAlignment="Bottom" Click="OnClearIsoClick" IsEnabled="False" />
       </Grid>
+
+      <ComboBox x:Name="StreamCatalogBox" Header="Download an official Linux installer ISO"
+                SelectedIndex="0" MinWidth="420"
+                SelectionChanged="OnStreamCatalogSelectionChanged"
+                ToolTipService.ToolTip="ZuTM resolves the distributor's current release and downloads the ISO into this VM's bundle when you click Create." >
+        <ComboBoxItem Content="Choose a Linux distribution…" Tag="" IsSelected="True" />
+      </ComboBox>
+
+      <TextBox x:Name="IsoUrlBox" Header="…or any http/https/ftp ISO URL (downloaded into the VM)"
+               PlaceholderText="https://releases.ubuntu.com/…/ubuntu-…-desktop-amd64.iso"
+               TextChanged="OnIsoUrlTextChanged" />
+
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <ProgressRing x:Name="ResolveProgress" IsActive="False" Width="16" Height="16" />
+        <TextBlock x:Name="StreamStatusText" VerticalAlignment="Center"
+                   Style="{StaticResource CaptionTextBlockStyle}"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      </StackPanel>
 
       <InfoBar x:Name="CreateInfoBar" IsOpen="False" Severity="Error" />
 

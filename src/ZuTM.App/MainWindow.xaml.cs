@@ -33,6 +33,7 @@ public sealed partial class MainWindow : Window
         var dispatcher = DispatcherQueue;
         var library = new VmLibraryService(InvokeOnUiAsync);
         ViewModel = new MainViewModel(library);
+        DetailView.Library = library;
 
         DetailView.StartRequested += async (_, vm) => await library.StartAsync(vm);
         DetailView.StopRequested += async (_, vm) => await library.StopAsync(vm);

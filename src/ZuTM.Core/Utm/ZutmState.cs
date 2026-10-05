@@ -31,6 +31,10 @@ public sealed record ZutmState
     [JsonPropertyName("window")]
     public ZutmWindowState? Window { get; init; }
 
+    /// <summary>USB host devices routed into this VM on every start (ZuTM routing, matched by VID/PID).</summary>
+    [JsonPropertyName("usbDevices")]
+    public IReadOnlyList<ZutmUsbDevice> UsbDevices { get; init; } = [];
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         WriteIndented = true,
@@ -76,4 +80,24 @@ public sealed record ZutmWindowState
 
     [JsonPropertyName("maximized")]
     public bool Maximized { get; init; }
+}
+
+/// <summary>
+/// One host USB device routed into a VM on start, matched by VID/PID (a
+/// device model, not a specific physical unit — QEMU claims whichever unit
+/// of that model is present and unclaimed). Lives in zutm-state.json so
+/// config.plist stays exactly as UTM wrote it.
+/// </summary>
+public sealed record ZutmUsbDevice
+{
+    [JsonPropertyName("vendorId")]
+    public ushort VendorId { get; init; }
+
+    [JsonPropertyName("productId")]
+    public ushort ProductId { get; init; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+
+    public string DisplayName => Name.Length > 0 ? Name : $"USB device {VendorId:X4}:{ProductId:X4}";
 }

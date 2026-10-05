@@ -21,6 +21,9 @@ public sealed class FakeQmpServer : IAsyncDisposable
 
     public int Port { get; }
 
+    /// <summary>Every handled command with its raw arguments JSON (null when none) — test-side recorder.</summary>
+    public List<(string Command, string? Arguments)> Commands { get; } = [];
+
     /// <summary>Handler receiving (command, id) and returning the reply object to serialize.</summary>
     public Func<string, long, object> OnCommand { get; set; } = static (command, _) => command switch
     {
@@ -101,6 +104,10 @@ public sealed class FakeQmpServer : IAsyncDisposable
             await SendReplyAsync(new { return_ = new { } }, id, cancellationToken);
             return;
         }
+
+        Commands.Add((command ?? "", document.RootElement.TryGetProperty("arguments", out var arguments)
+            ? arguments.GetRawText()
+            : null));
 
         if (command == "quit")
         {

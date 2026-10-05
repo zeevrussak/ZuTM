@@ -1,9 +1,12 @@
 // ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
 // Lossless config editor: every field maps onto `with` transforms of the
 // UTM model — unknown keys ride along untouched (FR-08/60).
+// USB routing persists in zutm-state.json (ZuTM-private), not config.plist.
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using ZuTM.App.ViewModels;
+using ZuTM.Core.Qemu;
 using ZuTM.Core.Utm;
 
 namespace ZuTM.App;
@@ -11,13 +14,54 @@ namespace ZuTM.App;
 public sealed partial class VMConfigEditorDialog : ContentDialog
 {
     private readonly UtmBundle _bundle;
+    private readonly Func<Task<IReadOnlyList<UsbHostDevice>>>? _enumerateUsbDevices;
+    private readonly HashSet<UsbHostDevice> _routedUsbDevices = [];
 
-    public VMConfigEditorDialog(UtmBundle bundle)
+    public VMConfigEditorDialog(
+        UtmBundle bundle,
+        Func<Task<IReadOnlyList<UsbHostDevice>>>? enumerateUsbDevices = null,
+        Func<IReadOnlyList<UsbHostDevice>?>? getUsbRouting = null)
     {
         _bundle = bundle;
+        _enumerateUsbDevices = enumerateUsbDevices;
         InitializeComponent();
         PrimaryButtonClick += OnSave;
         LoadFields();
+
+        foreach (var device in getUsbRouting?.Invoke() ?? [])
+        {
+            _routedUsbDevices.Add(device);
+        }
+
+        _ = LoadUsbRouteListAsync();
+    }
+
+    private async Task LoadUsbRouteListAsync()
+    {
+        var devices = _enumerateUsbDevices is null ? [] : await _enumerateUsbDevices();
+        UsbRouteList.ItemsSource = devices
+            .OrderBy(d => d.Name, StringComparer.CurrentCulture)
+            .Select(d => new UsbHostRow(d, _routedUsbDevices.Contains(d)))
+            .ToList();
+        UsbStatusText.Text = devices.Count == 0 ? "No USB devices found on this host." : "";
+    }
+
+    private void OnUsbRescanClick(object sender, RoutedEventArgs e) => _ = LoadUsbRouteListAsync();
+
+    private void OnUsbRouteChecked(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is UsbHostRow row)
+        {
+            _routedUsbDevices.Add(row.Device);
+        }
+    }
+
+    private void OnUsbRouteUnchecked(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is UsbHostRow row)
+        {
+            _routedUsbDevices.Remove(row.Device);
+        }
     }
 
     private void LoadFields()
@@ -43,6 +87,8 @@ public sealed partial class VMConfigEditorDialog : ContentDialog
         NetworkHardwareBox.Text = c.Networks.FirstOrDefault()?.Hardware ?? string.Empty;
         MacBox.Text = c.Networks.FirstOrDefault()?.MacAddress ?? string.Empty;
 
+        SelectTag(UsbBusBox, c.Input.UsbBusSupport);
+
         var sharingMode = c.Sharing.DirectoryShareMode;
         for (var i = 0; i < SharingModeBox.Items.Count; i++)
         {
@@ -55,6 +101,20 @@ public sealed partial class VMConfigEditorDialog : ContentDialog
 
         SharingReadOnlyToggle.IsOn = c.Sharing.IsDirectoryShareReadOnly;
         ClipboardToggle.IsOn = c.Sharing.HasClipboardSharing;
+    }
+
+    private static void SelectTag(ComboBox box, string tag)
+    {
+        for (var i = 0; i < box.Items.Count; i++)
+        {
+            if ((box.Items[i] as ComboBoxItem)?.Tag as string == tag)
+            {
+                box.SelectedIndex = i;
+                return;
+            }
+        }
+
+        box.SelectedIndex = 0;
     }
 
     private void OnSave(ContentDialog sender, ContentDialogButtonClickEventArgs args)
@@ -89,6 +149,10 @@ public sealed partial class VMConfigEditorDialog : ContentDialog
                 HasHypervisor = HypervisorToggle.IsOn,
                 HasRtcLocalTime = RtcToggle.IsOn,
                 HasDebugLog = DebugLogToggle.IsOn,
+            },
+            Input = c.Input with
+            {
+                UsbBusSupport = (UsbBusBox.SelectedItem as ComboBoxItem)?.Tag as string ?? UtmValues.UsbBusSupport.Default,
             },
             Sharing = c.Sharing with
             {
@@ -128,6 +192,15 @@ public sealed partial class VMConfigEditorDialog : ContentDialog
         try
         {
             _bundle.Configuration = configuration;
+            _bundle.State = _bundle.State with
+            {
+                UsbDevices = [.. _routedUsbDevices.Select(d => new ZutmUsbDevice
+                {
+                    VendorId = d.VendorId,
+                    ProductId = d.ProductId,
+                    Name = d.Name,
+                })],
+            };
             _bundle.Save();
         }
         catch (Exception ex)

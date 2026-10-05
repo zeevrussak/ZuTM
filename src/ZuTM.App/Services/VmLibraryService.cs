@@ -425,6 +425,79 @@ public sealed class VmLibraryService : IDisposable
         new DiskImageCreator(QemuRuntime).Create(spec);
     }
 
+    // -- Removable media & USB routing (live control over QMP) --------------------
+
+    private static QmpClient QmpFor(VmItemViewModel vm) =>
+        vm.Process?.Qmp ?? throw new InvalidOperationException("The VM is not running.");
+
+    /// <summary>USB devices currently attached to this Windows host (for the routing lists).</summary>
+    public Task<IReadOnlyList<UsbHostDevice>> ListUsbHostDevicesAsync() =>
+        Task.Run(() => UsbHostDeviceEnumerator.List());
+
+    public async Task<IReadOnlyList<CdTrayInfo>> GetCdTraysAsync(VmItemViewModel vm)
+    {
+        var qmp = QmpFor(vm);
+        return await Task.Run(() => qmp.QueryCdTraysAsync());
+    }
+
+    /// <summary>Mounts an ISO (empty tray first, media replaced, or a USB CD is hot-plugged).</summary>
+    public async Task MountIsoAsync(VmItemViewModel vm, string isoPath)
+    {
+        var qmp = QmpFor(vm);
+        await Task.Run(() => qmp.MountIsoAsync(isoPath));
+    }
+
+    public async Task EjectIsoAsync(VmItemViewModel vm, CdTrayInfo tray)
+    {
+        var qmp = QmpFor(vm);
+        await Task.Run(() => qmp.EjectAsync(tray));
+    }
+
+    /// <summary>ZuTM-routed usb-host devices currently attached to the guest.</summary>
+    public async Task<IReadOnlyList<AttachedUsbDevice>> GetAttachedUsbDevicesAsync(VmItemViewModel vm)
+    {
+        var qmp = QmpFor(vm);
+        return await Task.Run(() => qmp.QueryAttachedUsbHostDevicesAsync());
+    }
+
+    public async Task AttachUsbDeviceAsync(VmItemViewModel vm, UsbHostDevice device)
+    {
+        var qmp = QmpFor(vm);
+        await Task.Run(() => qmp.AttachUsbHostDeviceAsync(device.VendorId, device.ProductId));
+    }
+
+    public async Task DetachUsbDeviceAsync(VmItemViewModel vm, string deviceId)
+    {
+        var qmp = QmpFor(vm);
+        await Task.Run(() => qmp.DetachUsbHostDeviceAsync(deviceId));
+    }
+
+    /// <summary>USB devices configured to route into this VM on start (per zutm-state).</summary>
+    public IReadOnlyList<UsbHostDevice> GetUsbRouting(VmItemViewModel vm) =>
+        [.. vm.Bundle.State.UsbDevices.Select(d => new UsbHostDevice
+        {
+            VendorId = d.VendorId,
+            ProductId = d.ProductId,
+            Name = d.Name,
+        })];
+
+    /// <summary>Persists the USB routing for future starts (running VM is unaffected; runtime toggles are separate).</summary>
+    public void SaveUsbRouting(VmItemViewModel vm, IEnumerable<UsbHostDevice> devices)
+    {
+        ArgumentNullException.ThrowIfNull(vm);
+        ArgumentNullException.ThrowIfNull(devices);
+        vm.Bundle.State = vm.Bundle.State with
+        {
+            UsbDevices = [.. devices.Select(d => new ZutmUsbDevice
+            {
+                VendorId = d.VendorId,
+                ProductId = d.ProductId,
+                Name = d.Name,
+            })],
+        };
+        vm.Bundle.Save();
+    }
+
     public void SaveSettings(AppSettings settings)
     {
         Settings = settings;
