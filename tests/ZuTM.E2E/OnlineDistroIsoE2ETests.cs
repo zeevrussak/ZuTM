@@ -267,9 +267,9 @@ public class OnlineDistroIsoE2ETests : AlpineVmTestBase
     {
         var nameLength = record[32];
         var name = System.Text.Encoding.ASCII.GetString(record[33..(33 + nameLength)]);
-        if (name is "\0" or "\1")
+        if (name is "\u0000" or "\u0001")
         {
-            return name == "\0" ? "." : "..";
+            return name == "\u0000" ? "." : "..";
         }
 
         var systemUse = record[(33 + nameLength + ((nameLength % 2 == 0) ? 1 : 0))..];
