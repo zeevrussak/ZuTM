@@ -43,6 +43,13 @@ public sealed record AppSettings
 
     public static AppSettings Load()
     {
+        // E2E isolation hook: UI automation tests run the real app against a
+        // throwaway library instead of the user's VM folder.
+        if (Environment.GetEnvironmentVariable("ZUTM_VM_FOLDER") is { Length: > 0 } overrideFolder)
+        {
+            return new AppSettings { VmFolder = overrideFolder };
+        }
+
         try
         {
             if (File.Exists(SettingsPath))

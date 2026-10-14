@@ -93,6 +93,15 @@ jobs:
         shell: pwsh
         run: ./scripts/build-installer.ps1 -Architecture x64
 
+      - name: Installer E2E (install → launch → uninstall round trip)
+        shell: pwsh
+        run: ./scripts/testenv/installer-e2e.ps1 -Msi artifacts/ZuTM-x64.msi
+
+      - name: UI E2E — New VM dialog (create from online catalog, dialog-close crash regression)
+        shell: pwsh
+        run: ./scripts/testenv/ui-drive.ps1 -AppExe artifacts/publish-x64/ZuTM.exe `
+            -Name ui-e2e-vm -Distro "Alpine Linux (stable) — virt" -TimeoutSeconds 420
+
       - name: Authenticode-sign MSI (when a certificate is configured)
         if: env.SIGNING_CERT_PFX != '' && runner.os == 'Windows'
         shell: pwsh
@@ -132,6 +141,15 @@ jobs:
       - name: Build ARM64 MSI
         shell: pwsh
         run: ./scripts/build-installer.ps1 -Architecture arm64
+
+      - name: Installer E2E (install → launch → uninstall round trip)
+        shell: pwsh
+        run: ./scripts/testenv/installer-e2e.ps1 -Msi artifacts/ZuTM-arm64.msi
+
+      - name: UI E2E — New VM dialog (create from online catalog, dialog-close crash regression)
+        shell: pwsh
+        run: ./scripts/testenv/ui-drive.ps1 -AppExe artifacts/publish-arm64/ZuTM.exe `
+            -Name ui-e2e-vm -Distro "Alpine Linux (stable) — virt" -TimeoutSeconds 420
 
       - name: Authenticode-sign MSI (when a certificate is configured)
         if: env.SIGNING_CERT_PFX != '' && runner.os == 'Windows'

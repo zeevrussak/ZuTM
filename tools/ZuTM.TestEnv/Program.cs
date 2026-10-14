@@ -102,48 +102,54 @@ internal static class Program
             ?? throw new InvalidOperationException($"no alpine-virt ISO found at {indexUrl}");
 
         var fileName = match.Value;
-        if (File.Exists(IsoPath))
+        if (!File.Exists(IsoPath))
+        {
+            Console.WriteLine($"downloading {indexUrl}{fileName} …");
+            var target = Path.Combine(WorkDir, fileName);
+            using (var response = await http.GetAsync(indexUrl + fileName, HttpCompletionOption.ResponseHeadersRead))
+            {
+                response.EnsureSuccessStatusCode();
+                await using var file = File.Create(target);
+                await response.Content.CopyToAsync(file);
+            }
+
+            // Integrity: verify the published per-asset .sha256 companion file.
+            Console.WriteLine("verifying SHA-256 …");
+            var checksum = await http.GetStringAsync($"{indexUrl}{fileName}.sha256");
+            var expected = System.Text.RegularExpressions.Regex
+                .Match(checksum, "[0-9a-f]{64}")
+                .Value;
+            if (expected.Length != 64)
+            {
+                throw new InvalidOperationException($"no checksum found for {fileName}");
+            }
+
+            var actual = Convert.ToHexStringLower(await SHA256.HashDataAsync(File.OpenRead(target)));
+            if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+            {
+                File.Delete(target);
+                throw new InvalidOperationException($"checksum mismatch for {fileName}");
+            }
+
+            File.Copy(target, IsoPath, overwrite: true);
+            try
+            {
+                File.Delete(target); // best-effort; a leftover temp copy is harmless
+            }
+            catch (IOException)
+            {
+            }
+        }
+        else
         {
             Console.WriteLine($"ISO already present: {IsoPath}");
-            return 0;
         }
 
-        Console.WriteLine($"downloading {indexUrl}{fileName} …");
-        var target = Path.Combine(WorkDir, fileName);
-        using (var response = await http.GetAsync(indexUrl + fileName, HttpCompletionOption.ResponseHeadersRead))
-        {
-            response.EnsureSuccessStatusCode();
-            await using var file = File.Create(target);
-            await response.Content.CopyToAsync(file);
-        }
-
-        // Integrity: verify the published per-asset .sha256 companion file.
-        Console.WriteLine("verifying SHA-256 …");
-        var checksum = await http.GetStringAsync($"{indexUrl}{fileName}.sha256");
-        var expected = System.Text.RegularExpressions.Regex
-            .Match(checksum, "[0-9a-f]{64}")
-            .Value;
-        if (expected.Length != 64)
-        {
-            throw new InvalidOperationException($"no checksum found for {fileName}");
-        }
-
-        var actual = Convert.ToHexStringLower(await SHA256.HashDataAsync(File.OpenRead(target)));
-        if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
-        {
-            File.Delete(target);
-            throw new InvalidOperationException($"checksum mismatch for {fileName}");
-        }
-
-        File.Copy(target, IsoPath, overwrite: true);
-        try
-        {
-            File.Delete(target); // best-effort; a leftover temp copy is harmless
-        }
-        catch (IOException)
-        {
-        }
         Console.WriteLine($"ISO ready: {IsoPath} ({new FileInfo(IsoPath).Length / 1024 / 1024} MiB)");
+
+        // Boot files next to the ISO: the direct-kernel-boot pair the E2E
+        // suite uses (the stock ISO's bootloader has no serial console).
+        ExtractBootFiles();
         return 0;
     }
 
