@@ -372,16 +372,56 @@ public sealed partial class MainWindow : Window
                 var proceed = new ContentDialog
                 {
                     Title = "Install update?",
-                    Content = "ZuTM will close and Windows Installer will upgrade it in place.",
-                    PrimaryButtonText = "Install and restart",
+                    Content = "ZuTM hides itself while Windows Installer runs and comes back "
+                        + "with an explanation if the update does not go through.",
+                    PrimaryButtonText = "Install update",
                     CloseButtonText = "Later",
                     DefaultButton = ContentDialogButton.Primary,
                     XamlRoot = Content.XamlRoot,
                 };
-                if (await proceed.ShowAsync() == ContentDialogResult.Primary)
+                if (await proceed.ShowAsync() != ContentDialogResult.Primary)
                 {
-                    UpdateInstaller.StartInstaller(installerPath);
-                    Close();
+                    return;
+                }
+
+                // Hide (don't close): if the install fails or the user cancels
+                // UAC, ZuTM must still be there to say so — a closed window on
+                // a failed update was exactly the silent failure this replaces.
+                AppWindow.Hide();
+                UpdateInstallResult result;
+                try
+                {
+                    result = await UpdateInstallRunner.InstallAsync(installerPath);
+                }
+                catch (Exception ex)
+                {
+                    AppWindow.Show();
+                    Activate();
+                    _ = ShowInfoAsync("The update could not be started: " + ex.Message);
+                    return;
+                }
+
+                switch (result.Outcome)
+                {
+                    case InstallerOutcome.Success:
+                        // Replaced in place — exit so the new install takes over.
+                        Close();
+                        return;
+                    case InstallerOutcome.SuccessRebootRequired:
+                        Close(); // new version is in place; Windows finishes it on reboot
+                        return;
+                    case InstallerOutcome.UserCancelled:
+                        AppWindow.Show();
+                        Activate();
+                        await ShowInfoAsync("Update cancelled — ZuTM is still running your current version.");
+                        return;
+                    default:
+                        AppWindow.Show();
+                        Activate();
+                        await ShowInfoAsync(
+                            $"The update failed to install (Windows Installer exit code {result.ExitCode}). "
+                            + "Your current ZuTM is unchanged. A detailed log (MSI*.log) is in your %TEMP% folder.");
+                        return;
                 }
             },
         };
