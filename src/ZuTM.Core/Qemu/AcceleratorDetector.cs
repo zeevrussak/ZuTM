@@ -46,7 +46,7 @@ public sealed class AcceleratorDetector
 
     /// <summary>
     /// Returns true when the Windows Hypervisor Platform API reports a present hypervisor.
-    /// The probe resolves <c>WhvGetCapability</c> dynamically: on machines without the
+    /// The probe resolves <c>WHvGetCapability</c> dynamically: on machines without the
     /// WHP optional feature the system DLL exists but does not export the WHv API
     /// (a direct P/Invoke there throws EntryPointNotFoundException), which must read
     /// as "not available", never escape as an error.
@@ -72,7 +72,10 @@ public sealed class AcceleratorDetector
 
         try
         {
-            if (!NativeLibrary.TryGetExport(handle, "WhvGetCapability", out var address))
+            // The export is "WHvGetCapability" — capital H — and GetProcAddress is
+            // case-sensitive; the wrong case reads as "feature not enabled" on every
+            // WHP-enabled machine, silently forcing TCG everywhere.
+            if (!NativeLibrary.TryGetExport(handle, "WHvGetCapability", out var address))
             {
                 return WhvProbe.ApiUnavailable; // stub DLL without the WHv exports — feature not enabled
             }
