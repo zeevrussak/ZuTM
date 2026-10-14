@@ -48,11 +48,24 @@ function Fail([string]$message) {
 Write-Host "installer E2E: $msiPath"
 
 # --- 1. install / upgrade in place -----------------------------------------
+# No explicit /l*v: MsiLogging writes the log automatically — exactly the
+# real-world double-click scenario this contract protects. (An explicit log
+# would suppress the automatic one and the check below would be vacuous.)
+$installStarted = Get-Date
 $p = Start-Process -FilePath msiexec.exe -ArgumentList @(
-    '/i', "`"$msiPath`"", '/qn', "/l*v `"$([IO.Path]::GetTempPath())zutm-e2e-install.log`""
+    '/i', "`"$msiPath`"", '/qn', '/norestart'
 ) -Wait -PassThru
 if ($p.ExitCode -ne 0) { Fail "msiexec install failed with exit code $($p.ExitCode)" }
 Write-Host 'install: ok'
+
+# Automatic logging contract (MsiLogging property): every run of this
+# package leaves %TEMP%\MSI*.log behind, so real-world failures — where no
+# explicit /l*v is passed — are still diagnosable.
+$autoLog = Get-ChildItem ([IO.Path]::GetTempPath()) -Filter 'MSI*.log' -ErrorAction SilentlyContinue |
+    Where-Object { $_.LastWriteTime -ge $installStarted } |
+    Select-Object -First 1
+if (-not $autoLog) { Fail 'no automatic MSI log (%TEMP%\MSI*.log) appeared after install — MsiLogging missing?' }
+Write-Host "automatic log: ok ($($autoLog.Name))"
 
 # --- 2. shortcut (also the authoritative install location — the MSI leaves
 #        the registry InstallLocation empty). The package is perMachine, so

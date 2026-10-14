@@ -28,6 +28,12 @@
 
     <MediaTemplate EmbedCab="yes" />
 
+    <!-- Automatic install logging: every msiexec run of this package writes
+         %TEMP%\MSI*.log, so a failed or cancelled install is diagnosable
+         instead of a wizard that just went away. '!' flushes each line, so
+         even a hard crash mid-install leaves the trail. -->
+    <Property Id="MsiLogging" Value="voicewarmupx!" />
+
     <!-- Interactive setup wizard (Welcome → install location → install →
          finish). Without it double-clicking the MSI runs with no visible
          wizard, which reads as "the installer does nothing". -->

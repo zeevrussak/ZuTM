@@ -70,12 +70,23 @@ function Test-MsiLayout {
 
         $icon = Get-Rows 'SELECT `Name` FROM `Icon` WHERE `Name` = ''ZutmIcon''' 1
         if ($icon.Count -ne 1) { throw 'MSI is missing the ZutmIcon icon (ARP/shortcut icon)' }
+
+        # Failure visibility contract: automatic install logging (every
+        # msiexec run leaves %TEMP%\MSI*.log) and the wizard's fatal-error /
+        # user-exit dialogs, so a failed install is never just a window that
+        # quietly goes away.
+        $logging = Get-Rows 'SELECT `Value` FROM `Property` WHERE `Property` = ''MsiLogging''' 1
+        if ($logging.Count -ne 1 -or $logging[0][0].Length -eq 0) { throw 'MSI is missing the MsiLogging property (automatic install logs)' }
+        foreach ($dialog in @('FatalError', 'UserExit', 'ExitDialog', 'WelcomeDlg', 'InstallDirDlg', 'VerifyReadyDlg')) {
+            $row = Get-Rows "SELECT ``Dialog`` FROM ``Dialog`` WHERE ``Dialog`` = '$dialog'" 1
+            if ($row.Count -ne 1) { throw "MSI is missing the $dialog dialog (setup UI contract)" }
+        }
     }
     finally {
         [void][Runtime.InteropServices.Marshal]::ReleaseComObject($db)
         [void][Runtime.InteropServices.Marshal]::ReleaseComObject($installer)
     }
-    Write-Host 'MSI layout verified: shortcut -> INSTALLFOLDER\ZuTM.exe, icon embedded' -ForegroundColor Green
+    Write-Host 'MSI layout verified: shortcut -> INSTALLFOLDER\ZuTM.exe, icon embedded, MsiLogging + setup/error dialogs present' -ForegroundColor Green
 }
 
 function Build-One {
