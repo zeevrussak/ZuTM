@@ -254,7 +254,14 @@ public sealed class QemuCommandLineBuilder
         // advances for every bootable drive so unannotated backends (exotic
         // interfaces without an explicit frontend device) can never overtake
         // an annotated one.
-        var bootIndex = 0;
+        // With a direct-kernel boot (-kernel) the kernel loader itself claims
+        // bootindex 0 (measured on QEMU 11: any device asking for 0 is
+        // rejected with "bootindex 0 has already been used"), so the drives
+        // start at 1 — the kernel boots first either way.
+        var bootIndex = _configuration.Drives.Any(
+            drive => drive.ImageType == UtmValues.DriveImageType.LinuxKernel)
+            ? 1
+            : 0;
         var index = 0;
         foreach (var drive in _configuration.Drives)
         {

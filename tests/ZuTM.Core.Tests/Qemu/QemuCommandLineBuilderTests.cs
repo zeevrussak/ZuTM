@@ -344,6 +344,34 @@ public class QemuCommandLineBuilderTests : IDisposable
     }
 
     [Fact]
+    public void DirectKernelBoot_DrivesStartAtBootIndexOne()
+    {
+        // QEMU's kernel loader claims bootindex 0 for itself; a device asking
+        // for 0 alongside -kernel is rejected ("bootindex 0 has already been
+        // used"), so bootable drives must start at 1 — kernel still first.
+        var kernelDriveId = Guid.NewGuid().ToString("D").ToUpperInvariant();
+        var config = NewConfig(c => c = c with
+        {
+            Drives =
+            [
+                new UtmDrive { ImageName = "install.iso", ImageType = UtmValues.DriveImageType.Cd, Interface = UtmValues.DriveInterface.Ide, IsReadOnly = true },
+                new UtmDrive { ImageName = "disk-0.qcow2", ImageType = UtmValues.DriveImageType.Disk, Interface = UtmValues.DriveInterface.Virtio },
+                new UtmDrive { ImageType = UtmValues.DriveImageType.LinuxKernel, Identifier = kernelDriveId },
+                new UtmDrive { ImageType = UtmValues.DriveImageType.LinuxInitrd, Identifier = Guid.NewGuid().ToString("D").ToUpperInvariant() },
+            ],
+        });
+
+        var plan = Build(config, drive => drive.ImageType == UtmValues.DriveImageType.LinuxKernel
+            ? @"C:\boot\vmlinuz"
+            : @$"C:\vm\Data\{drive.ImageName}");
+
+        AssertHasArg("kernel passed", plan.Arguments, a => a == @"C:\boot\vmlinuz");
+        AssertHasArg("cd boots at 1", plan.Arguments, a => a == "ide-cd,drive=zutm-cd-0,id=zutm-cd-dev-0,bootindex=1");
+        AssertHasArg("disk boots at 2", plan.Arguments, a => a == "virtio-blk-pci,drive=zutm-drive-1,bootindex=2");
+        Assert.DoesNotContain(plan.Arguments, a => a.Contains("bootindex=0", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void RemoteCdImage_StreamsThroughCurlBlockDriver()
     {
         const string url = "https://releases.ubuntu.com/noble/ubuntu-24.04.3-desktop-amd64.iso";
