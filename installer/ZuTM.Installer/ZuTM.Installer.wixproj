@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <PackageReference Include="WixToolset.Heat" />
+    <PackageReference Include="WixToolset.UI.wixext" />
     <HarvestDirectory Include="$(PublishDir)">
       <ComponentGroupName>HarvestedComponents</ComponentGroupName>
       <DirectoryRefId>INSTALLFOLDER</DirectoryRefId>

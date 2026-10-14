@@ -12,6 +12,7 @@
 
     <!-- Installer (WiX v6 line) -->
     <PackageVersion Include="WixToolset.Heat" Version="6.0.2" />
+    <PackageVersion Include="WixToolset.UI.wixext" Version="6.0.2" />
 
     <!-- Testing -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />

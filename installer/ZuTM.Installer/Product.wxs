@@ -5,7 +5,8 @@
   Built per-architecture by scripts/build-installer.ps1:
     ZuTM-x64.msi / ZuTM-arm64.msi   (asset names matched by the update client)
 -->
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package
       Name="ZuTM"
       Manufacturer="Ze'ev Russak"
@@ -26,6 +27,11 @@
         DowngradeErrorMessage="A newer version of ZuTM is already installed." />
 
     <MediaTemplate EmbedCab="yes" />
+
+    <!-- Interactive setup wizard (Welcome → install location → install →
+         finish). Without it double-clicking the MSI runs with no visible
+         wizard, which reads as "the installer does nothing". -->
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 
     <!-- Icon: Add/Remove Programs entry and Start-menu shortcut. -->
     <Property Id="ARPNOREPAIR" Value="0" />
@@ -70,7 +76,11 @@
             Icon="ZutmIcon"
             WorkingDirectory="INSTALLFOLDER" />
         <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
-        <RegistryValue Root="HKCU" Key="Software\ZuTM" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        <!-- Key path is per-machine: an HKCU key path would make this
+             component's installed state depend on which user happened to run
+             the install, so an upgrade under another account (or elevation)
+             could leave the shortcut removed and never recreated. -->
+        <RegistryValue Root="HKLM" Key="Software\ZuTM" Name="installed" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>
   </Package>
