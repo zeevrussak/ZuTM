@@ -261,6 +261,17 @@ public sealed partial class NewVmDialog : ContentDialog
             return;
         }
 
+        if (isoUrl.Length == 0 && StreamCatalogBox.SelectedIndex > 0)
+        {
+            // A catalog distro is picked but its URL has not landed in the
+            // box yet — creating now would silently produce a VM without the
+            // installer it was promised.
+            args.Cancel = true;
+            CreateInfoBar.Message = $"Still resolving the {((StreamCatalogBox.SelectedItem as ComboBoxItem)?.Content ?? "selected")} ISO — wait a moment, or paste an ISO URL below.";
+            CreateInfoBar.IsOpen = true;
+            return;
+        }
+
         if (isoUrl.Length > 0 && RemoteImage.GetValidationError(isoUrl) is { } urlError)
         {
             args.Cancel = true;
