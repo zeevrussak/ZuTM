@@ -52,7 +52,13 @@ public sealed partial class MainWindow : Window
                 DetailView.Vm = ViewModel.SelectedVm;
             }
 
-            UpdateStatus();
+            // UpdateStatus() clears and refills the bound VM list. The list's
+            // TwoWay SelectedItem binding writes back while a change is still
+            // propagating, so running this synchronously inside the
+            // notification re-enters ObservableCollection (CheckReentrancy
+            // throws, XAML stows the exception, the process fail-fasts —
+            // seen as a hard crash right after creating a VM).
+            dispatcher.TryEnqueue(UpdateStatus);
         };
         VmFolderText.Text = library.Settings.VmFolder;
         UpdateStatus();
@@ -141,15 +147,41 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private bool _updatingStatus;
+
     private void UpdateStatus()
     {
-        _allVms = [.. ViewModel.Library.VirtualMachines];
-        ApplyFilterKeepSelection();
-        var running = ViewModel.Library.RunningCount();
-        StatusBarText.Text = ViewModel.VirtualMachines.Count == 0
-            ? "No virtual machines yet — click “New VM” to create one."
-            : $"{ViewModel.VirtualMachines.Count} VM(s) · {running} running · folder: {ViewModel.Library.Settings.VmFolder}";
+        // A queued UpdateStatus can still land inside another one's
+        // collection churn (selection write-back lands on the dispatcher
+        // too); a nested run would Clear() mid-notification again.
+        if (_updatingStatus)
+        {
+            _statusRefreshQueued = true;
+            return;
+        }
+
+        _updatingStatus = true;
+        try
+        {
+            _allVms = [.. ViewModel.Library.VirtualMachines];
+            ApplyFilterKeepSelection();
+            var running = ViewModel.Library.RunningCount();
+            StatusBarText.Text = ViewModel.VirtualMachines.Count == 0
+                ? "No virtual machines yet — click “New VM” to create one."
+                : $"{ViewModel.VirtualMachines.Count} VM(s) · {running} running · folder: {ViewModel.Library.Settings.VmFolder}";
+        }
+        finally
+        {
+            _updatingStatus = false;
+            if (_statusRefreshQueued)
+            {
+                _statusRefreshQueued = false;
+                DispatcherQueue.TryEnqueue(UpdateStatus);
+            }
+        }
     }
+
+    private bool _statusRefreshQueued;
 
     private void OnRefreshClick(object sender, RoutedEventArgs e) => ViewModel.ReloadCommand.Execute(null);
 
