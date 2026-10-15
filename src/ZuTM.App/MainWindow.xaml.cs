@@ -46,6 +46,13 @@ public sealed partial class MainWindow : Window
         DetailView.DeleteRequested += async (_, vm) => await DeleteVmAsync(vm);
         DetailView.SnapshotRequested += async (_, vm) => await SnapshotVmAsync(vm);
         DetailView.RestoreRequested += async (_, vm) => await RestoreVmAsync(vm);
+        DetailView.CreateRequested += (_, _) => OnNewVmClick(this, new RoutedEventArgs());
+
+        _transientTimer.Tick += (_, _) =>
+        {
+            _transientTimer.Stop();
+            TransientBar.IsOpen = false;
+        };
 
         ViewModel.PropertyChanged += (_, e) =>
         {
@@ -206,7 +213,7 @@ public sealed partial class MainWindow : Window
         }
 
         UpdateStatus();
-        _ = ShowInfoAsync($"Cloned “{vm.Name}” → “{clone.Name}”.");
+        ShowTransient($"Cloned “{vm.Name}” → “{clone.Name}”.");
     }
 
     private async Task DeleteVmAsync(VmItemViewModel vm)
@@ -239,7 +246,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            await ShowInfoAsync($"Delete failed: {ex.Message}");
+            ShowError($"Delete failed: {ex.Message}");
         }
     }
 
@@ -281,7 +288,7 @@ public sealed partial class MainWindow : Window
             try
             {
                 await qmp.SaveSnapshotAsync(name);
-                _ = ShowInfoAsync($"Snapshot “{name}” saved.");
+                ShowTransient($"Snapshot “{name}” saved.");
             }
             finally
             {
@@ -290,7 +297,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            await ShowInfoAsync($"Snapshot failed: {ex.Message}");
+            ShowError($"Snapshot failed: {ex.Message}");
         }
     }
 
@@ -308,13 +315,13 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            await ShowInfoAsync($"Could not list snapshots: {ex.Message}");
+            ShowError($"Could not list snapshots: {ex.Message}");
             return;
         }
 
         if (snapshots.Count == 0)
         {
-            await ShowInfoAsync("This VM has no snapshots yet.");
+            ShowTransient("This VM has no snapshots yet.", InfoBarSeverity.Informational);
             return;
         }
 
@@ -343,7 +350,7 @@ public sealed partial class MainWindow : Window
                 await qmp.PauseAsync();
                 await qmp.LoadSnapshotAsync(snapshot);
                 await qmp.ResumeAsync();
-                _ = ShowInfoAsync($"Snapshot “{snapshot}” restored.");
+                ShowTransient($"Snapshot “{snapshot}” restored.");
             }
             finally
             {
@@ -352,20 +359,27 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            await ShowInfoAsync($"Restore failed: {ex.Message}");
+            ShowError($"Restore failed: {ex.Message}");
         }
     }
 
-    private async Task ShowInfoAsync(string message)
+    private readonly DispatcherTimer _transientTimer = new() { Interval = TimeSpan.FromSeconds(6) };
+
+    /// <summary>Non-blocking feedback — replaces "ZuTM"-titled modal dialogs.</summary>
+    private void ShowTransient(string message, InfoBarSeverity severity = InfoBarSeverity.Success)
     {
-        var dialog = new ContentDialog
-        {
-            Title = "ZuTM",
-            Content = message,
-            CloseButtonText = "OK",
-            XamlRoot = Content.XamlRoot,
-        };
-        await dialog.ShowAsync();
+        TransientBar.Severity = severity;
+        TransientBar.Message = message;
+        TransientBar.IsOpen = true;
+        _transientTimer.Stop();
+        _transientTimer.Start();
+    }
+
+    /// <summary>Sticky, dismissible error feedback for operations that did not succeed.</summary>
+    private void ShowError(string message)
+    {
+        ErrorBar.Message = message;
+        ErrorBar.IsOpen = true;
     }
 
     private async void OnVmDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
@@ -435,7 +449,7 @@ public sealed partial class MainWindow : Window
                 {
                     AppWindow.Show();
                     Activate();
-                    _ = ShowInfoAsync("The update could not be started: " + ex.Message);
+                    ShowError("The update could not be started: " + ex.Message);
                     return;
                 }
 
@@ -451,12 +465,12 @@ public sealed partial class MainWindow : Window
                     case InstallerOutcome.UserCancelled:
                         AppWindow.Show();
                         Activate();
-                        await ShowInfoAsync("Update cancelled — ZuTM is still running your current version.");
+                        ShowTransient("Update cancelled — ZuTM is still running your current version.", InfoBarSeverity.Informational);
                         return;
                     default:
                         AppWindow.Show();
                         Activate();
-                        await ShowInfoAsync(
+                        ShowError(
                             $"The update failed to install (Windows Installer exit code {result.ExitCode}). "
                             + "Your current ZuTM is unchanged. A detailed log (MSI*.log) is in your %TEMP% folder.");
                         return;

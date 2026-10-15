@@ -391,6 +391,11 @@ public sealed partial class VmDetailView : UserControl
 
     // -- Activity strip (pause / resume / cancel / retry) ---------------------------
 
+    /// <summary>Raised when the empty state's create button is clicked.</summary>
+    public event EventHandler? CreateRequested;
+
+    private void OnEmptyCreateClick(object sender, RoutedEventArgs e) => CreateRequested?.Invoke(this, EventArgs.Empty);
+
     private void OnActivityPauseClick(object sender, RoutedEventArgs e)
     {
         if (Vm is { } vm)

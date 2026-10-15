@@ -12,7 +12,11 @@
     <StackPanel Spacing="12" Padding="0,48,0,48" HorizontalAlignment="Center"
                 Visibility="{x:Bind local:Converters.ToCollapsed(HasVm), Mode=OneWay}">
       <FontIcon Glyph="&#xE968;" FontSize="40" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-      <TextBlock Text="Select or create a virtual machine" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
+      <TextBlock Text="No virtual machine selected" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
+      <Button Content="Create a virtual machine" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Center"
+              Click="OnEmptyCreateClick"
+              AutomationProperties.AutomationId="EmptyStateCreateButton"
+              ToolTipService.ToolTip="Opens the New Virtual Machine dialog" />
     </StackPanel>
 
     <!-- Detail -->
