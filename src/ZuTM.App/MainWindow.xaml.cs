@@ -26,6 +26,9 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         Title = "ZuTM — Virtual Machines";
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
+        SizeChanged += OnWindowSizeChanged;
         ApplyMica();
         SizeToSaneDefault();
         ApplyMinimumSize();
@@ -505,6 +508,95 @@ public sealed partial class MainWindow : Window
         if (ViewModel.SelectedVm is { CanStart: true } vm)
         {
             await ViewModel.Library.StartAsync(vm);
+        }
+    }
+
+    // -- Pane collapse (adaptive at narrow widths) ---------------------------------
+
+    private const double PaneExpandedWidth = 300;
+    private const double AutoCollapseBelowWidth = 720;
+    private bool _paneCollapsedByUser;
+
+    private bool PaneCollapsed
+    {
+        get => PaneColumn.Width.GridUnitType == GridUnitType.Pixel && PaneColumn.Width.Value == 0;
+        set
+        {
+            PaneColumn.Width = new GridLength(value ? 0 : PaneExpandedWidth, GridUnitType.Pixel);
+            PaneToggleButton.IsEnabled = !value;
+            PaneExpandButton.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private void OnPaneToggleClick(object sender, RoutedEventArgs e)
+    {
+        _paneCollapsedByUser = !PaneCollapsed;
+        PaneCollapsed = _paneCollapsedByUser;
+    }
+
+    private void OnWindowSizeChanged(object sender, WindowSizeChangedEventArgs args)
+    {
+        // Narrow windows auto-collapse the pane so the detail pane keeps room;
+        // widening restores whatever the user chose.
+        if (args.Size.Width < AutoCollapseBelowWidth)
+        {
+            if (!PaneCollapsed)
+            {
+                PaneCollapsed = true;
+            }
+        }
+        else if (PaneCollapsed && !_paneCollapsedByUser)
+        {
+            PaneCollapsed = false;
+        }
+    }
+
+    // -- List context menu --------------------------------------------------------
+
+    private static VmItemViewModel? VmFrom(object sender) =>
+        (sender as FrameworkElement)?.DataContext as VmItemViewModel;
+
+    private async void OnMenuStartClick(object sender, RoutedEventArgs e)
+    {
+        if (VmFrom(sender) is { } vm)
+        {
+            ViewModel.SelectedVm = vm;
+            await ViewModel.Library.StartAsync(vm);
+        }
+    }
+
+    private async void OnMenuStopClick(object sender, RoutedEventArgs e)
+    {
+        if (VmFrom(sender) is { } vm)
+        {
+            ViewModel.SelectedVm = vm;
+            await ViewModel.Library.StopAsync(vm);
+        }
+    }
+
+    private async void OnMenuCloneClick(object sender, RoutedEventArgs e)
+    {
+        if (VmFrom(sender) is { } vm)
+        {
+            ViewModel.SelectedVm = vm;
+            await CloneVmAsync(vm);
+        }
+    }
+
+    private async void OnMenuDeleteClick(object sender, RoutedEventArgs e)
+    {
+        if (VmFrom(sender) is { } vm)
+        {
+            ViewModel.SelectedVm = vm;
+            await DeleteVmAsync(vm);
+        }
+    }
+
+    private async void OnMenuOpenFolderClick(object sender, RoutedEventArgs e)
+    {
+        if (VmFrom(sender) is { } vm)
+        {
+            _ = Windows.System.Launcher.LaunchFolderPathAsync(vm.Bundle.BundlePath);
         }
     }
 

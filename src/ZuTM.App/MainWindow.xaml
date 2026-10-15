@@ -23,8 +23,11 @@
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <!-- Title / command bar -->
-    <Grid Grid.Row="0" Padding="12,8,12,8" ColumnSpacing="8">
+    <!-- Custom title bar: app identity + primary actions live in the OS title
+         bar (ExtendsContentIntoTitleBar + SetTitleBar). Interactive children
+         inside still receive input; the rest of the row drags the window. -->
+    <Grid x:Name="AppTitleBar" Grid.Row="0" Padding="12,8,12,8" ColumnSpacing="8"
+          Background="Transparent">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
@@ -32,40 +35,40 @@
       </Grid.ColumnDefinitions>
 
       <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-        <FontIcon Glyph="&#xE9B9;" FontSize="18" />
+        <FontIcon Glyph="&#xE9B9;" FontSize="16" />
         <TextBlock Text="ZuTM" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
       </StackPanel>
 
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-        <ProgressRing Width="16" Height="16"
-                      IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
-                      Visibility="{x:Bind local:Converters.ToVisibility(ViewModel.IsBusy), Mode=OneWay}" />
-        <TextBox x:Name="SearchBox" PlaceholderText="Search virtual machines" Width="200" TextChanged="OnSearchChanged"
-                 AutomationProperties.AutomationId="VmSearchBox"
-                 ToolTipService.ToolTip="Filter the VM list (Ctrl+F)">
-          <TextBox.KeyboardAccelerators>
-            <KeyboardAccelerator Key="F" Modifiers="Control" Invoked="OnFocusSearchAccelerator" />
-          </TextBox.KeyboardAccelerators>
-        </TextBox>
-        <Button Content="New VM" Style="{StaticResource AccentButtonStyle}" Click="OnNewVmClick" ToolTipService.ToolTip="Create a virtual machine (Ctrl+N)"
-                AutomationProperties.AutomationId="NewVmButton">
-          <Button.KeyboardAccelerators>
-            <KeyboardAccelerator Key="N" Modifiers="Control" />
-          </Button.KeyboardAccelerators>
-        </Button>
-        <Button Content="Refresh" Click="OnRefreshClick" ToolTipService.ToolTip="Rescan the VM folder (F5)"
-                AutomationProperties.AutomationId="RefreshButton">
-          <Button.KeyboardAccelerators>
-            <KeyboardAccelerator Key="F5" />
-          </Button.KeyboardAccelerators>
-        </Button>
-        <Button Content="Settings" Click="OnSettingsClick" ToolTipService.ToolTip="Open settings (Ctrl+,)"
-                AutomationProperties.AutomationId="SettingsButton">
-          <Button.KeyboardAccelerators>
-            <KeyboardAccelerator Key="188" Modifiers="Control" /> <!-- 188 = VirtualKey.Comma; not XAML-nameable -->
-          </Button.KeyboardAccelerators>
-        </Button>
-      </StackPanel>
+          <ProgressRing Width="16" Height="16"
+                        IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+                        Visibility="{x:Bind local:Converters.ToVisibility(ViewModel.IsBusy), Mode=OneWay}" />
+          <TextBox x:Name="SearchBox" PlaceholderText="Search virtual machines" Width="200" TextChanged="OnSearchChanged"
+                   AutomationProperties.AutomationId="VmSearchBox"
+                   ToolTipService.ToolTip="Filter the VM list (Ctrl+F)">
+            <TextBox.KeyboardAccelerators>
+              <KeyboardAccelerator Key="F" Modifiers="Control" Invoked="OnFocusSearchAccelerator" />
+            </TextBox.KeyboardAccelerators>
+          </TextBox>
+          <Button Content="New VM" Style="{StaticResource AccentButtonStyle}" Click="OnNewVmClick" ToolTipService.ToolTip="Create a virtual machine (Ctrl+N)"
+                  AutomationProperties.AutomationId="NewVmButton">
+            <Button.KeyboardAccelerators>
+              <KeyboardAccelerator Key="N" Modifiers="Control" />
+            </Button.KeyboardAccelerators>
+          </Button>
+          <Button Content="Refresh" Click="OnRefreshClick" ToolTipService.ToolTip="Rescan the VM folder (F5)"
+                  AutomationProperties.AutomationId="RefreshButton">
+            <Button.KeyboardAccelerators>
+              <KeyboardAccelerator Key="F5" />
+            </Button.KeyboardAccelerators>
+          </Button>
+          <Button Content="Settings" Click="OnSettingsClick" ToolTipService.ToolTip="Open settings (Ctrl+,)"
+                  AutomationProperties.AutomationId="SettingsButton">
+            <Button.KeyboardAccelerators>
+              <KeyboardAccelerator Key="188" Modifiers="Control" /> <!-- 188 = VirtualKey.Comma; not XAML-nameable -->
+            </Button.KeyboardAccelerators>
+          </Button>
+        </StackPanel>
     </Grid>
 
     <!-- Non-modal notifications: load banner, transient status, errors -->
@@ -82,18 +85,32 @@
     <!-- List + detail split -->
     <Grid Grid.Row="2">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto" MinWidth="260" MaxWidth="480" />
+        <ColumnDefinition x:Name="PaneColumn" Width="300" MinWidth="0" MaxWidth="480" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
       <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- Pane header: title + collapse toggle -->
+        <Grid Grid.Row="0" Padding="12,8,4,8" ColumnSpacing="4">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="Virtual machines" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+          <Button x:Name="PaneToggleButton" Grid.Column="1" Click="OnPaneToggleClick" Background="Transparent" BorderThickness="0" Padding="6"
+                  ToolTipService.ToolTip="Collapse or expand the VM list">
+            <FontIcon x:Name="PaneToggleGlyph" Glyph="&#xE00E;" FontSize="14" />
+          </Button>
+        </Grid>
+
         <ListView
-            Grid.Row="0"
+            Grid.Row="1"
             ItemsSource="{x:Bind ViewModel.VirtualMachines, Mode=OneWay}"
             SelectedItem="{x:Bind ViewModel.SelectedVm, Mode=TwoWay}"
             SelectionMode="Single"
@@ -104,6 +121,27 @@
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="svc:VmItemViewModel">
               <Grid ColumnSpacing="12" Padding="4,8,4,8">
+                <Grid.ContextFlyout>
+                  <MenuFlyout>
+                    <MenuFlyoutItem Text="Start" IsEnabled="{x:Bind CanStart, Mode=OneWay}" Click="OnMenuStartClick">
+                      <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE768;" /></MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Text="Stop" IsEnabled="{x:Bind CanStop, Mode=OneWay}" Click="OnMenuStopClick">
+                      <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE71A;" /></MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutSeparator />
+                    <MenuFlyoutItem Text="Clone" IsEnabled="{x:Bind CanClone, Mode=OneWay}" Click="OnMenuCloneClick">
+                      <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8C8;" /></MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Text="Delete" IsEnabled="{x:Bind CanDelete, Mode=OneWay}" Click="OnMenuDeleteClick" Foreground="{ThemeResource SystemFillColorCriticalBrush}">
+                      <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74D;" /></MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutSeparator />
+                    <MenuFlyoutItem Text="Open bundle folder" Click="OnMenuOpenFolderClick">
+                      <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE838;" /></MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                  </MenuFlyout>
+                </Grid.ContextFlyout>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto" />
                   <ColumnDefinition Width="*" />
@@ -126,7 +164,7 @@
           </ListView.ItemTemplate>
         </ListView>
 
-        <Border Grid.Row="1" Padding="12,6" Background="{ThemeResource LayerFillColorAltBrush}">
+        <Border Grid.Row="2" Padding="12,6" Background="{ThemeResource LayerFillColorAltBrush}">
           <TextBlock
               x:Name="VmFolderText"
               Style="{StaticResource CaptionTextBlockStyle}"
@@ -135,12 +173,23 @@
         </Border>
       </Grid>
 
-      <!-- Detail -->
-      <ScrollViewer Grid.Column="1" Padding="24,8,24,8">
-        <StackPanel Spacing="8">
-          <local:VmDetailView x:Name="DetailView" />
-        </StackPanel>
-      </ScrollViewer>
+      <!-- Detail (with a re-expand affordance when the pane is collapsed) -->
+      <Grid Grid.Column="1">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Button x:Name="PaneExpandButton" Grid.Row="0" Margin="8,4" Padding="6" HorizontalAlignment="Left"
+                Click="OnPaneToggleClick" Visibility="Collapsed" Background="Transparent" BorderThickness="0"
+                ToolTipService.ToolTip="Show the VM list">
+          <FontIcon Glyph="&#xE00F;" FontSize="14" />
+        </Button>
+        <ScrollViewer Grid.Row="1" Padding="24,8,24,8">
+          <StackPanel Spacing="8">
+            <local:VmDetailView x:Name="DetailView" />
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
     </Grid>
 
     <!-- Status bar -->
