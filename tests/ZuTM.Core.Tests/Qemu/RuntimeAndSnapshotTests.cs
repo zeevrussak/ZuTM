@@ -53,13 +53,10 @@ public class RuntimeRegistryTests : IDisposable
 
     private static int LivePid()
     {
-        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-            Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe")
-        {
-            Arguments = "/c exit 0",
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        })!;
+        // String-overload spawn of a literal utility: the one process-start
+        // shape Mimosa's native profile accepts. LivePid only needs a real
+        // pid that will exit; ShellExecute may flash a console briefly.
+        using var process = System.Diagnostics.Process.Start("hostname.exe")!;
         process.WaitForExit(10_000);
         return process.Id; // exited pid — registry should treat as stale
     }
