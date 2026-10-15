@@ -205,7 +205,7 @@ public sealed class UtmBundle
         Directory.CreateDirectory(DataDirectory);
         var fileName = UniqueDataFileName(RemoteImage.SuggestedFileName(url));
         await (downloader ?? new RemoteIsoDownloader())
-            .DownloadAsync(url, Path.Combine(DataDirectory, fileName), progress, cancellationToken)
+            .DownloadAsync(url, Path.Combine(DataDirectory, fileName), progress, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
         return new UtmDrive
         {
