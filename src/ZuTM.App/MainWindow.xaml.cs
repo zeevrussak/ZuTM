@@ -202,6 +202,21 @@ public sealed partial class MainWindow : Window
 
     private void OnRefreshClick(object sender, RoutedEventArgs e) => ViewModel.ReloadCommand.Execute(null);
 
+    private void OnFocusSearchAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        SearchBox.Focus(FocusState.Keyboard);
+        args.Handled = true;
+    }    private async void OnDeleteAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        // The Delete key means "delete this VM" only while the list has
+        // focus — and routes through the same confirmation as the button.
+        if (ViewModel.SelectedVm is { CanDelete: true } vm)
+        {
+            await DeleteVmAsync(vm);
+            args.Handled = true;
+        }
+    }
+
     private async Task CloneVmAsync(VmItemViewModel vm)
     {
         // Progress, cancellation and failure surfacing live on the VM's

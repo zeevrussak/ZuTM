@@ -41,12 +41,30 @@
                       IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
                       Visibility="{x:Bind local:Converters.ToVisibility(ViewModel.IsBusy), Mode=OneWay}" />
         <TextBox x:Name="SearchBox" PlaceholderText="Search virtual machines" Width="200" TextChanged="OnSearchChanged"
-                 AutomationProperties.AutomationId="VmSearchBox" />
-        <Button Content="New VM" Style="{StaticResource AccentButtonStyle}" Click="OnNewVmClick" ToolTipService.ToolTip="Create a virtual machine"
-                AutomationProperties.AutomationId="NewVmButton" />
-        <Button Content="Refresh" Click="OnRefreshClick" ToolTipService.ToolTip="Rescan the VM folder"
-                AutomationProperties.AutomationId="RefreshButton" />
-        <Button Content="Settings" Click="OnSettingsClick" AutomationProperties.AutomationId="SettingsButton" />
+                 AutomationProperties.AutomationId="VmSearchBox"
+                 ToolTipService.ToolTip="Filter the VM list (Ctrl+F)">
+          <TextBox.KeyboardAccelerators>
+            <KeyboardAccelerator Key="F" Modifiers="Control" Invoked="OnFocusSearchAccelerator" />
+          </TextBox.KeyboardAccelerators>
+        </TextBox>
+        <Button Content="New VM" Style="{StaticResource AccentButtonStyle}" Click="OnNewVmClick" ToolTipService.ToolTip="Create a virtual machine (Ctrl+N)"
+                AutomationProperties.AutomationId="NewVmButton">
+          <Button.KeyboardAccelerators>
+            <KeyboardAccelerator Key="N" Modifiers="Control" />
+          </Button.KeyboardAccelerators>
+        </Button>
+        <Button Content="Refresh" Click="OnRefreshClick" ToolTipService.ToolTip="Rescan the VM folder (F5)"
+                AutomationProperties.AutomationId="RefreshButton">
+          <Button.KeyboardAccelerators>
+            <KeyboardAccelerator Key="F5" />
+          </Button.KeyboardAccelerators>
+        </Button>
+        <Button Content="Settings" Click="OnSettingsClick" ToolTipService.ToolTip="Open settings (Ctrl+,)"
+                AutomationProperties.AutomationId="SettingsButton">
+          <Button.KeyboardAccelerators>
+            <KeyboardAccelerator Key="188" Modifiers="Control" /> <!-- 188 = VirtualKey.Comma; not XAML-nameable -->
+          </Button.KeyboardAccelerators>
+        </Button>
       </StackPanel>
     </Grid>
 
@@ -80,6 +98,9 @@
             SelectedItem="{x:Bind ViewModel.SelectedVm, Mode=TwoWay}"
             SelectionMode="Single"
             DoubleTapped="OnVmDoubleTapped">
+          <ListView.KeyboardAccelerators>
+            <KeyboardAccelerator Key="Delete" Invoked="OnDeleteAccelerator" />
+          </ListView.KeyboardAccelerators>
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="svc:VmItemViewModel">
               <Grid ColumnSpacing="12" Padding="4,8,4,8">

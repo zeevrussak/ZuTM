@@ -34,6 +34,7 @@ public sealed partial class NewVmDialog : ContentDialog
         FormatBox.SelectionChanged += (_, _) =>
             AllocationBox.IsEnabled = SelectedFormat().SupportsFixedAllocation();
         PrimaryButtonClick += OnPrimaryButtonClick;
+        Opened += (_, _) => NameBox.Focus(FocusState.Keyboard);
         RefreshStreamCatalog();
         _ = LoadUsbRouteListAsync();
     }
