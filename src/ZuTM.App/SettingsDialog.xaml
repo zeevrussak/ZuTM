@@ -12,6 +12,21 @@
   <StackPanel Spacing="12" MinWidth="460">
     <TextBox x:Name="VmFolderBox" Header="Virtual machines folder" />
 
+    <StackPanel Spacing="4">
+      <TextBox x:Name="DownloadsFolderBox"
+               Header="Downloads folder — downloaded installer ISOs land here (empty = inside each VM's bundle)" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Content="Browse…" Click="OnBrowseDownloadsFolderClick"
+                AutomationProperties.AutomationId="DownloadsFolderBrowseButton"
+                ToolTipService.ToolTip="Pick a folder on a roomy drive; the ISO stays there and VMs reference it" />
+        <Button Content="Open folder" Click="OnOpenDownloadsFolderClick"
+                AutomationProperties.AutomationId="DownloadsFolderOpenButton"
+                ToolTipService.ToolTip="Open the configured downloads folder (or the VM folder when unset)" />
+      </StackPanel>
+      <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
+                 Text="A custom folder keeps one download reusable by several VMs; bundles then reference the ISO instead of carrying it." />
+    </StackPanel>
+
     <CheckBox x:Name="UpdateCheckBox" Content="Check for updates weekly (GitHub Releases)" IsChecked="True" />
 
     <!-- Updates -->
