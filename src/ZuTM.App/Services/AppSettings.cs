@@ -37,6 +37,22 @@ public sealed record AppSettings
     [JsonPropertyName("lastUpdateCheckUtc")]
     public DateTimeOffset? LastUpdateCheckUtc { get; init; }
 
+    /// <summary>Window placement persisted from the previous session (device-independent pixels).</summary>
+    [JsonPropertyName("windowLeft")]
+    public int? WindowLeft { get; init; }
+
+    [JsonPropertyName("windowTop")]
+    public int? WindowTop { get; init; }
+
+    [JsonPropertyName("windowWidth")]
+    public int? WindowWidth { get; init; }
+
+    [JsonPropertyName("windowHeight")]
+    public int? WindowHeight { get; init; }
+
+    [JsonPropertyName("windowMaximized")]
+    public bool WindowMaximized { get; init; }
+
     private static string DefaultVmFolder()
     {
         var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);

@@ -101,12 +101,14 @@ public sealed partial class VmDetailView : UserControl
             {
                 dispatcher.TryEnqueue(() =>
                 {
+                    SyncPauseToggle();
                     Bindings.Update();
                     _ = RefreshLiveRowsAsync();
                 });
             }
             else
             {
+                SyncPauseToggle();
                 Bindings.Update();
                 _ = RefreshLiveRowsAsync();
             }
@@ -133,6 +135,7 @@ public sealed partial class VmDetailView : UserControl
         DriveRows.Clear();
         Terminal.Endpoint = Vm?.SerialPort ?? 0;
 
+        SyncPauseToggle();
         PopulateStaticRows();
         RefreshAccelerationNotice();
         _ = RefreshLiveRowsAsync();
@@ -481,6 +484,58 @@ public sealed partial class VmDetailView : UserControl
         _ => drive.ImageType,
     };
 
+    // -- Pause/Resume as one toggle ---------------------------------------------
+
+    private bool _syncingPauseToggle;
+
+    /// <summary>
+    /// Syncs the single Pause/Resume toggle with the VM's state: unchecked and
+    /// labeled "Pause" while running, checked and labeled "Resume" while
+    /// paused. User clicks flow through PauseRequested/ResumeRequested.
+    /// </summary>
+    private void SyncPauseToggle()
+    {
+        if (Vm is not { } vm)
+        {
+            return;
+        }
+
+        _syncingPauseToggle = true;
+        try
+        {
+            var paused = vm.Status is VmStatus.Paused or VmStatus.Resuming;
+            PauseToggle.IsChecked = paused;
+            PauseToggle.Label = paused ? "Resume" : "Pause";
+            PauseToggle.IsEnabled = vm.CanPause || vm.CanResume;
+        }
+        finally
+        {
+            _syncingPauseToggle = false;
+        }
+    }
+
+    private async void OnPauseToggleChecked(object sender, RoutedEventArgs e)
+    {
+        if (_syncingPauseToggle || Vm is not { CanPause: true } vm || PauseRequested is null)
+        {
+            return;
+        }
+
+        await PauseRequested(this, vm);
+        SyncPauseToggle();
+    }
+
+    private async void OnPauseToggleUnchecked(object sender, RoutedEventArgs e)
+    {
+        if (_syncingPauseToggle || Vm is not { CanResume: true } vm || ResumeRequested is null)
+        {
+            return;
+        }
+
+        await ResumeRequested(this, vm);
+        SyncPauseToggle();
+    }
+
     private async void OnStartClick(object sender, RoutedEventArgs e)
     {
         if (Vm is not null && StartRequested is not null)
@@ -502,14 +557,6 @@ public sealed partial class VmDetailView : UserControl
         if (Vm is not null && PauseRequested is not null)
         {
             await PauseRequested(this, Vm);
-        }
-    }
-
-    private async void OnResumeClick(object sender, RoutedEventArgs e)
-    {
-        if (Vm is not null && ResumeRequested is not null)
-        {
-            await ResumeRequested(this, Vm);
         }
     }
 

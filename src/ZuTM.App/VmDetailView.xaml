@@ -27,14 +27,33 @@
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <TextBlock Grid.Column="0" Text="{x:Bind Vm.Name, Mode=OneWay}" Style="{StaticResource TitleTextBlockStyle}" />
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
           <Button Content="Start" Style="{StaticResource AccentButtonStyle}" IsEnabled="{x:Bind Vm.CanStart, Mode=OneWay}" Click="OnStartClick" />
-          <Button Content="Pause" IsEnabled="{x:Bind Vm.CanPause, Mode=OneWay}" Click="OnPauseClick" />
-          <Button Content="Resume" IsEnabled="{x:Bind Vm.CanResume, Mode=OneWay}" Click="OnResumeClick" />
-          <Button Content="Reset" IsEnabled="{x:Bind Vm.CanReset, Mode=OneWay}" Click="OnResetClick" ToolTipService.ToolTip="Hard-reset the guest; unsaved state is lost" />
-          <Button Content="Stop" IsEnabled="{x:Bind Vm.CanStop, Mode=OneWay}" Click="OnStopClick" />
-          <Button Content="Clone" IsEnabled="{x:Bind Vm.CanClone, Mode=OneWay}" Click="OnCloneClick" ToolTipService.ToolTip="Duplicate this VM with a new identity" />
-          <Button Content="Delete" IsEnabled="{x:Bind Vm.CanDelete, Mode=OneWay}" Click="OnDeleteClick" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+          <CommandBar DefaultLabelPosition="Right" IsOpen="False" VerticalAlignment="Center">
+            <AppBarToggleButton x:Name="PauseToggle" Label="Pause" IsChecked="False"
+                                IsEnabled="{x:Bind Vm.CanPause, Mode=OneWay}"
+                                Checked="OnPauseToggleChecked" Unchecked="OnPauseToggleUnchecked"
+                                ToolTipService.ToolTip="Freeze the guest CPUs (QMP stop); Resume continues them" />
+            <AppBarButton Label="Edit…" Click="OnEditClick" AutomationProperties.AutomationId="EditVmButton"
+                          ToolTipService.ToolTip="Edit this VM's configuration (all sections)" />
+            <AppBarButton Label="Snapshot…" Click="OnSnapshotClick" IsEnabled="{x:Bind Vm.CanPause, Mode=OneWay}"
+                          AutomationProperties.AutomationId="SnapshotButton"
+                          ToolTipService.ToolTip="Save the full machine state into the disks — the VM stays paused until it finishes and this cannot be interrupted" />
+            <AppBarButton Label="Restore…" Click="OnRestoreClick" IsEnabled="{x:Bind Vm.CanPause, Mode=OneWay}"
+                          AutomationProperties.AutomationId="RestoreButton"
+                          ToolTipService.ToolTip="Restore a saved snapshot" />
+            <CommandBar.SecondaryCommands>
+              <AppBarButton Label="Reset" Click="OnResetClick" IsEnabled="{x:Bind Vm.CanReset, Mode=OneWay}"
+                            ToolTipService.ToolTip="Hard-reset the guest; unsaved state is lost" />
+              <AppBarButton Label="Stop" Click="OnStopClick" IsEnabled="{x:Bind Vm.CanStop, Mode=OneWay}"
+                            ToolTipService.ToolTip="Graceful ACPI power-down, escalating to terminate after 30 s" />
+              <AppBarButton Label="Clone" Click="OnCloneClick" IsEnabled="{x:Bind Vm.CanClone, Mode=OneWay}"
+                            ToolTipService.ToolTip="Duplicate this VM with a new identity — progress shows on the row" />
+              <AppBarButton Label="Delete" Click="OnDeleteClick" IsEnabled="{x:Bind Vm.CanDelete, Mode=OneWay}"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            ToolTipService.ToolTip="Permanently remove this VM and every disk in its bundle (asks first)" />
+            </CommandBar.SecondaryCommands>
+          </CommandBar>
         </StackPanel>
       </Grid>
 
@@ -178,18 +197,6 @@
       <TextBlock Text="{x:Bind Vm.Bundle.Configuration.Information.Notes, Mode=OneWay}"
                  Style="{StaticResource BodyTextBlockStyle}" IsTextSelectionEnabled="True"
                  TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-
-      <!-- Lifecycle tools -->
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,16,0,0">
-        <Button Content="Edit…" Click="OnEditClick" AutomationProperties.AutomationId="EditVmButton"
-                ToolTipService.ToolTip="Edit this VM's configuration (all sections)" />
-        <Button Content="Snapshot…" Click="OnSnapshotClick" IsEnabled="{x:Bind Vm.CanPause, Mode=OneWay}"
-                AutomationProperties.AutomationId="SnapshotButton"
-                ToolTipService.ToolTip="Save the full machine state into the disks" />
-        <Button Content="Restore…" Click="OnRestoreClick" IsEnabled="{x:Bind Vm.CanPause, Mode=OneWay}"
-                AutomationProperties.AutomationId="RestoreButton"
-                ToolTipService.ToolTip="Restore a saved snapshot" />
-      </StackPanel>
 
       <!-- Serial console -->
       <TextBlock Text="Serial console" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />

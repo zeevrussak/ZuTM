@@ -28,6 +28,9 @@ public sealed partial class MainWindow : Window
         Title = "ZuTM — Virtual Machines";
         ApplyMica();
         SizeToSaneDefault();
+        ApplyMinimumSize();
+        RestorePlacement();
+        TrackPlacement();
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
 
         var dispatcher = DispatcherQueue;
@@ -117,11 +120,111 @@ public sealed partial class MainWindow : Window
         AppWindow.Resize(new SizeInt32(1180, 760));
     }
 
+    // The two-pane layout crushes below this; enforced as a presenter minimum.
+    private const int MinWindowWidth = 860;
+    private const int MinWindowHeight = 560;
+
+    private void ApplyMinimumSize()
+    {
+        if (AppWindow?.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.PreferredMinimumWidth = MinWindowWidth;
+            presenter.PreferredMinimumHeight = MinWindowHeight;
+        }
+    }
+
+    private SizeInt32? _lastNormalSize;
+    private PointInt32? _lastNormalPosition;
+    private bool _wasMaximized;
+
+    private void RestorePlacement()
+    {
+        if (AppWindow is null)
+        {
+            return;
+        }
+
+        // Runs before the ViewModel exists — read the persisted settings
+        // directly (the library applies the same file later in the ctor).
+        var settings = AppSettings.Load();
+        if (settings.WindowLeft is { } left && settings.WindowTop is { } top
+            && settings.WindowWidth is { } width && settings.WindowHeight is { } height
+            && width >= MinWindowWidth && height >= MinWindowHeight)
+        {
+            // Only restore onto a display that still exists (unplugged monitor
+            // would strand the window off-screen).
+            if (Microsoft.UI.Windowing.DisplayArea.GetFromPoint(
+                    new PointInt32(left, top), Microsoft.UI.Windowing.DisplayAreaFallback.None)
+                is not null)
+            {
+                AppWindow.MoveAndResize(new RectInt32(left, top, width, height));
+            }
+        }
+
+        if (settings.WindowMaximized && AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.Maximize();
+        }
+    }
+
+    private void TrackPlacement()
+    {
+        if (AppWindow is null)
+        {
+            return;
+        }
+
+        AppWindow.Changed += (_, args) =>
+        {
+            if (args.DidPositionChange || args.DidSizeChange)
+            {
+                var presenter = AppWindow.Presenter as OverlappedPresenter;
+                var maximized = presenter?.State == OverlappedPresenterState.Maximized;
+                if (!maximized)
+                {
+                    // DPI-scaled logical values — the same units MoveAndResize takes.
+                    _lastNormalSize = AppWindow.Size;
+                    _lastNormalPosition = AppWindow.Position;
+                }
+
+                _wasMaximized = maximized;
+            }
+        };
+
+        Closed += (_, _) =>
+        {
+            if (_lastNormalSize is not { } size || _lastNormalPosition is not { } position)
+            {
+                return;
+            }
+
+            try
+            {
+                ViewModel.Library.SaveSettings(ViewModel.Library.Settings with
+                {
+                    WindowLeft = position.X,
+                    WindowTop = position.Y,
+                    WindowWidth = size.Width,
+                    WindowHeight = size.Height,
+                    WindowMaximized = _wasMaximized,
+                });
+            }
+            catch (Exception)
+            {
+                // Placement persistence is pure polish — never block shutdown.
+            }
+        };
+    }
+
     private List<VmItemViewModel> _allVms = [];
 
     private void OnSearchChanged(object sender, Microsoft.UI.Xaml.Controls.TextChangedEventArgs e)
     {
-        ApplyFilter();
+        // Typing in the filter must not throw away the user's selection —
+        // the keep-selection variant re-selects when the VM still matches,
+        // and the ListView's TwoWay binding clears it when it doesn't.
+        ApplyFilterKeepSelection();
+        UpdateStatus();
     }
 
     private void ApplyFilterKeepSelection()
