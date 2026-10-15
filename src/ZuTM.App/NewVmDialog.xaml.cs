@@ -60,6 +60,49 @@ public sealed partial class NewVmDialog : ContentDialog
 
     private void OnUsbRescanClick(object sender, RoutedEventArgs e) => _ = LoadUsbRouteListAsync();
 
+    // -- Install source cards ------------------------------------------------------
+
+    private void OnSourceNoneChecked(object sender, RoutedEventArgs e)
+    {
+        LocalIsoPanel.Visibility = Visibility.Collapsed;
+        DownloadPanel.Visibility = Visibility.Collapsed;
+        // Leaving "None" must not keep a half-chosen source behind: the old
+        // dialog could silently carry both a local path and a URL.
+        IsoBox.Text = string.Empty;
+        ClearIsoButton.IsEnabled = false;
+        IsoUrlBox.Text = string.Empty;
+        if (StreamCatalogBox.SelectedIndex > 0)
+        {
+            StreamCatalogBox.SelectedIndex = 0;
+        }
+
+        StreamStatusText.Text = string.Empty;
+        UpdateDestinationNotice();
+    }
+
+    private void OnSourceLocalChecked(object sender, RoutedEventArgs e)
+    {
+        LocalIsoPanel.Visibility = Visibility.Visible;
+        DownloadPanel.Visibility = Visibility.Collapsed;
+        IsoUrlBox.Text = string.Empty;
+        if (StreamCatalogBox.SelectedIndex > 0)
+        {
+            StreamCatalogBox.SelectedIndex = 0;
+        }
+
+        StreamStatusText.Text = string.Empty;
+        UpdateDestinationNotice();
+    }
+
+    private void OnSourceDownloadChecked(object sender, RoutedEventArgs e)
+    {
+        LocalIsoPanel.Visibility = Visibility.Collapsed;
+        DownloadPanel.Visibility = Visibility.Visible;
+        IsoBox.Text = string.Empty;
+        ClearIsoButton.IsEnabled = false;
+        UpdateDestinationNotice();
+    }
+
     private void OnUsbRouteChecked(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is UsbHostRow row)
@@ -119,6 +162,7 @@ public sealed partial class NewVmDialog : ContentDialog
         var file = await picker.PickSingleFileAsync();
         if (file is not null)
         {
+            LocalIsoRadio.IsChecked = true; // reveal the local panel if the picker was opened from it
             IsoBox.Text = file.Path;
             ClearIsoButton.IsEnabled = true;
             UpdateDestinationNotice();

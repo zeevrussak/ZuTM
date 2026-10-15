@@ -11,7 +11,9 @@
     DefaultButton="Primary">
 
   <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto">
-    <StackPanel Spacing="12" MinWidth="420">
+    <StackPanel Spacing="12" MinWidth="440">
+
+      <!-- Essentials: the five decisions a first-run user actually needs. -->
       <TextBox x:Name="NameBox" Header="Name" PlaceholderText="My VM" />
 
       <ComboBox x:Name="ArchitectureBox" Header="Architecture" SelectedIndex="0" MinWidth="200">
@@ -19,100 +21,118 @@
         <ComboBoxItem Content="aarch64 (ARM)" Tag="aarch64" />
       </ComboBox>
 
-      <ComboBox x:Name="TargetBox" Header="Machine" SelectedIndex="0" MinWidth="200">
-        <ComboBoxItem Content="q35 (modern PC)" Tag="q35" />
-        <ComboBoxItem Content="virt (ARM)" Tag="virt" />
-      </ComboBox>
-
       <NumberBox x:Name="MemoryBox" Header="Memory (MiB)" Value="2048" Minimum="128" Maximum="131072" SmallChange="512" LargeChange="1024" SpinButtonPlacementMode="Compact" />
-
-      <CheckBox x:Name="BalloonBox" Content="Memory ballooning (return idle RAM to the host)" IsChecked="True" />
-
-      <NumberBox x:Name="CpuBox" Header="vCPUs (0 = match host)" Value="2" Minimum="0" Maximum="64" SpinButtonPlacementMode="Compact" />
-
-      <CheckBox x:Name="UefiBox" Content="UEFI boot" IsChecked="True" />
-
-      <TextBlock Text="USB" Style="{ThemeResource SubtitleTextBlockStyle}" />
-
-      <ComboBox x:Name="UsbBusBox" Header="USB bus support" SelectedIndex="1" MinWidth="200"
-                ToolTipService.ToolTip="Guest-side USB controller generation. USB 3.0 (xHCI) is recommended; Default uses the machine's native bus.">
-        <ComboBoxItem Content="Default" Tag="Default" />
-        <ComboBoxItem Content="USB 3.0 (recommended)" Tag="USB 3.0" />
-        <ComboBoxItem Content="USB 2.0" Tag="USB 2.0" />
-        <ComboBoxItem Content="None" Tag="None" />
-      </ComboBox>
-
-      <TextBlock Text="USB devices routed into this VM on start" Margin="0,4,0,0" />
-      <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="2">
-          <ItemsControl x:Name="UsbRouteList">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:UsbHostRow">
-                <CheckBox Content="{x:Bind Title}" IsChecked="{x:Bind IsAttached, Mode=OneTime}"
-                          Checked="OnUsbRouteChecked" Unchecked="OnUsbRouteUnchecked"
-                          ToolTipService.ToolTip="{x:Bind Detail}"
-                          AutomationProperties.AutomationId="NewUsbRouteToggle" />
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <TextBlock x:Name="UsbStatusText" Style="{StaticResource CaptionTextBlockStyle}"
-                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        </StackPanel>
-      </ScrollViewer>
-      <Button Content="Rescan host devices" Click="OnUsbRescanClick" HorizontalAlignment="Left" />
-
-      <TextBlock Text="Storage" Style="{ThemeResource SubtitleTextBlockStyle}" />
 
       <NumberBox x:Name="DiskBox" Header="Disk size (GiB, 0 = none)" Value="20" Minimum="0" Maximum="2048" SpinButtonPlacementMode="Compact" />
 
-      <ComboBox x:Name="FormatBox" Header="Disk image type" SelectedIndex="0" MinWidth="280">
-        <ComboBoxItem Content="QCOW2 — sparse, snapshots (recommended)" Tag="qcow2" />
-        <ComboBoxItem Content="RAW — plain flat image" Tag="raw" />
-        <ComboBoxItem Content="VHD — Hyper-V / Virtual PC" Tag="vhd" />
-        <ComboBoxItem Content="VDI — VirtualBox" Tag="vdi" />
-        <ComboBoxItem Content="VMDK — VMware" Tag="vmdk" />
-      </ComboBox>
+      <TextBlock Text="Install source" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
+      <StackPanel Spacing="6">
+        <RadioButton x:Name="NoneSourceRadio" GroupName="InstallSource" Content="None — boot from the disk (or attach media later)"
+                     IsChecked="True" Checked="OnSourceNoneChecked" />
+        <RadioButton x:Name="LocalIsoRadio" GroupName="InstallSource" Content="Local ISO file"
+                     Checked="OnSourceLocalChecked" />
+        <RadioButton x:Name="DownloadRadio" GroupName="InstallSource" Content="Download a Linux distribution"
+                     AutomationProperties.AutomationId="DownloadSourceRadio"
+                     Checked="OnSourceDownloadChecked" />
+      </StackPanel>
 
-      <ComboBox x:Name="AllocationBox" Header="Allocation (VHD / VDI only)" SelectedIndex="0" MinWidth="280" IsEnabled="False"
-                ToolTipService.ToolTip="Fixed allocation reserves the full disk size on the host at creation time. Windows QEMU can preallocate only VHD and VDI images; QCOW2, RAW and VMDK always expand as the guest writes.">
-        <ComboBoxItem Content="Expanding — grows as the guest writes" Tag="expanding" />
-        <ComboBoxItem Content="Fixed — reserve full size on the host now" Tag="fixed" />
-      </ComboBox>
-
-      <Grid ColumnSpacing="8">
+      <!-- Local ISO panel -->
+      <Grid ColumnSpacing="8" Visibility="Collapsed" x:Name="LocalIsoPanel">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <TextBox x:Name="IsoBox" Grid.Column="0" Header="Installer ISO file (optional)"
-                 PlaceholderText="No ISO — boots from disk" IsReadOnly="True" />
+        <TextBox x:Name="IsoBox" Grid.Column="0" Header="Installer ISO file"
+                 PlaceholderText="Pick an ISO below" IsReadOnly="True" />
         <Button x:Name="BrowseIsoButton" Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="OnBrowseIsoClick"
                 ToolTipService.ToolTip="Pick an ISO to boot first — e.g. a Windows or Linux installer" />
         <Button x:Name="ClearIsoButton" Grid.Column="2" Content="Clear" VerticalAlignment="Bottom" Click="OnClearIsoClick" IsEnabled="False" />
       </Grid>
 
-      <ComboBox x:Name="StreamCatalogBox" Header="Download an official Linux installer ISO"
-                SelectedIndex="0" MinWidth="420"
-                SelectionChanged="OnStreamCatalogSelectionChanged"
-                ToolTipService.ToolTip="ZuTM resolves the distributor's current release and downloads the ISO into this VM's bundle when you click Create." >
-        <ComboBoxItem Content="Choose a Linux distribution…" Tag="" IsSelected="True" />
-      </ComboBox>
+      <!-- Download panel -->
+      <StackPanel Spacing="12" Visibility="Collapsed" x:Name="DownloadPanel">
+        <ComboBox x:Name="StreamCatalogBox" Header="Download an official Linux installer ISO"
+                  SelectedIndex="0" MinWidth="420"
+                  SelectionChanged="OnStreamCatalogSelectionChanged"
+                  ToolTipService.ToolTip="ZuTM resolves the distributor's current release and downloads the ISO into this VM's bundle when you click Create." >
+          <ComboBoxItem Content="Choose a Linux distribution…" Tag="" IsSelected="True" />
+        </ComboBox>
 
-      <TextBox x:Name="IsoUrlBox" Header="…or any http/https/ftp ISO URL (downloaded into the VM)"
-               PlaceholderText="https://releases.ubuntu.com/…/ubuntu-…-desktop-amd64.iso"
-               TextChanged="OnIsoUrlTextChanged" />
+        <TextBox x:Name="IsoUrlBox" Header="…or any http/https/ftp ISO URL (downloaded into the VM)"
+                 PlaceholderText="https://releases.ubuntu.com/…/ubuntu-…-desktop-amd64.iso"
+                 TextChanged="OnIsoUrlTextChanged" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ProgressRing x:Name="ResolveProgress" IsActive="False" Width="16" Height="16" />
+          <TextBlock x:Name="StreamStatusText" VerticalAlignment="Center"
+                     Style="{StaticResource CaptionTextBlockStyle}"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+      </StackPanel>
 
       <TextBlock x:Name="IsoDestinationText" Style="{StaticResource CaptionTextBlockStyle}"
                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
                  Visibility="Collapsed" />
 
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <ProgressRing x:Name="ResolveProgress" IsActive="False" Width="16" Height="16" />
-        <TextBlock x:Name="StreamStatusText" VerticalAlignment="Center"
-                   Style="{StaticResource CaptionTextBlockStyle}"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-      </StackPanel>
+      <!-- Everything else: collapsed unless the user wants it. -->
+      <Expander Header="Customize — machine, CPUs, USB, disk format" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+        <StackPanel Spacing="12">
+          <ComboBox x:Name="TargetBox" Header="Machine" SelectedIndex="0" MinWidth="200">
+            <ComboBoxItem Content="q35 (modern PC)" Tag="q35" />
+            <ComboBoxItem Content="virt (ARM)" Tag="virt" />
+          </ComboBox>
+
+          <NumberBox x:Name="CpuBox" Header="vCPUs (0 = match host)" Value="2" Minimum="0" Maximum="64" SpinButtonPlacementMode="Compact" />
+
+          <CheckBox x:Name="BalloonBox" Content="Memory ballooning (return idle RAM to the host)" IsChecked="True" />
+
+          <CheckBox x:Name="UefiBox" Content="UEFI boot" IsChecked="True" />
+
+          <TextBlock Text="USB" Style="{StaticResource SubtitleTextBlockStyle}" />
+
+          <ComboBox x:Name="UsbBusBox" Header="USB bus support" SelectedIndex="1" MinWidth="200"
+                    ToolTipService.ToolTip="Guest-side USB controller generation. USB 3.0 (xHCI) is recommended; Default uses the machine's native bus.">
+            <ComboBoxItem Content="Default" Tag="Default" />
+            <ComboBoxItem Content="USB 3.0 (recommended)" Tag="USB 3.0" />
+            <ComboBoxItem Content="USB 2.0" Tag="USB 2.0" />
+            <ComboBoxItem Content="None" Tag="None" />
+          </ComboBox>
+
+          <TextBlock Text="USB devices routed into this VM on start" Margin="0,4,0,0" />
+          <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="2">
+              <ItemsControl x:Name="UsbRouteList">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:UsbHostRow">
+                    <CheckBox Content="{x:Bind Title}" IsChecked="{x:Bind IsAttached, Mode=OneTime}"
+                              Checked="OnUsbRouteChecked" Unchecked="OnUsbRouteUnchecked"
+                              ToolTipService.ToolTip="{x:Bind Detail}"
+                              AutomationProperties.AutomationId="NewUsbRouteToggle" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock x:Name="UsbStatusText" Style="{StaticResource CaptionTextBlockStyle}"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+          </ScrollViewer>
+          <Button Content="Rescan host devices" Click="OnUsbRescanClick" HorizontalAlignment="Left" />
+
+          <ComboBox x:Name="FormatBox" Header="Disk image type" SelectedIndex="0" MinWidth="280">
+            <ComboBoxItem Content="QCOW2 — sparse, snapshots (recommended)" Tag="qcow2" />
+            <ComboBoxItem Content="RAW — plain flat image" Tag="raw" />
+            <ComboBoxItem Content="VHD — Hyper-V / Virtual PC" Tag="vhd" />
+            <ComboBoxItem Content="VDI — VirtualBox" Tag="vdi" />
+            <ComboBoxItem Content="VMDK — VMware" Tag="vmdk" />
+          </ComboBox>
+
+          <ComboBox x:Name="AllocationBox" Header="Allocation (VHD / VDI only)" SelectedIndex="0" MinWidth="280" IsEnabled="False"
+                    ToolTipService.ToolTip="Fixed allocation reserves the full disk size on the host at creation time. Windows QEMU can preallocate only VHD and VDI images; QCOW2, RAW and VMDK always expand as the guest writes.">
+            <ComboBoxItem Content="Expanding — grows as the guest writes" Tag="expanding" />
+            <ComboBoxItem Content="Fixed — reserve full size on the host now" Tag="fixed" />
+          </ComboBox>
+        </StackPanel>
+      </Expander>
 
       <InfoBar x:Name="CreateInfoBar" IsOpen="False" Severity="Error" />
 

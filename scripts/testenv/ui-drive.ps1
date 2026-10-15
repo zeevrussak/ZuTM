@@ -91,6 +91,9 @@ Write-Host "name set to $Name"
 
 # --- optional distro selection --------------------------------------------
 if ($Distro -ne '') {
+    # The download source is a collapsed panel: select its radio card first.
+    $radio = Wait-Element $dlg { param($root) Find-ById $root 'DownloadSourceRadio' } 10
+    ($radio.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select()
     $combo = Wait-Element $dlg { param($root) Find-ByName $root 'Download an official Linux installer ISO' } 10
     $expand = $combo.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
     $expand.Expand()
