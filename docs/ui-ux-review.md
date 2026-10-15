@@ -319,10 +319,25 @@ generation) — revisit when localization becomes a goal. Earlier 2026-10-15
 pass shipped Phase 1 in full (activity model, resumable downloads,
 background creation, non-modal feedback) plus the downloads-folder setting.
 
-**Not runtime-verified in this pass** (no interactive session): title-bar
-caption overlap, drag-drop visuals, theme preview — build-verified only;
-E2E suites (`ui-drive.ps1` updated for the new dialog shape) should be run
-in the ZUTM_E2E environment.
+**Runtime-verified (2026-10-15, second pass):** `ui-drive.ps1` smoke, a 16-check
+UIA probe, and the distro download flow all pass against the real app. The
+pass caught and fixed three defects that build verification could not see:
+`Key="188"` compiled but crashed at XAML load (accelerator moved to
+code-behind); the title-bar action stack overlapped the caption buttons
+(reserved 148px, probe-verified 168px clearance); and `IsChecked="True"` on
+the None radio fired its handler mid-`InitializeComponent`, killing the New-VM
+dialog (initial check moved to the constructor). Three full distro runs
+completed through the UI: dialog closes fast, download runs in background,
+66 MiB Alpine ISO lands complete in the bundle with the CD drive attached and
+no `.part` leftovers. **Not runtime-verified in this pass** (no interactive
+session): drag-drop visuals, theme preview rendering. The QEMU-backed E2E
+suite (`dotnet test tests/ZuTM.E2E`, ZUTM_E2E=1) could not complete: it
+wedged on the pre-existing CliAndUiTests CLI hang — a ZuTM CLI process spun
+at 100% CPU for ~49 minutes (2910 CPU-seconds) and survived RunCli's 240 s
+tree-kill (the `cmd /c` layout re-parents the CLI, which
+`Kill(entireProcessTree)` misses). Evidence and next steps live in the
+session memory (zutm-e2e-cli-spin); that bug predates this UI work and
+blocks all E2E runs until fixed.
 
 Constraints for every phase: keep every `AutomationProperties.AutomationId`
 the E2E suites reference; all builds target win-x64 **and** win-arm64 with
