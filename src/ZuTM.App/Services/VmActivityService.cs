@@ -279,6 +279,29 @@ public sealed class VmActivityService
         }
     }
 
+    /// <summary>
+    /// Cancels every in-flight operation (window close). Cancels are token
+    /// signals — they do not need a live dispatcher, so this is safe to call
+    /// from the Closed handler.
+    /// </summary>
+    public Task CancelAllAsync()
+    {
+        foreach (var download in _downloads.Values)
+        {
+            download.Cancellation.Cancel();
+        }
+
+        foreach (var cancellation in _cancellations.Values)
+        {
+            cancellation.Cancel();
+        }
+
+        _downloads.Clear();
+        _pendingPlans.Clear();
+        _cancellations.Clear();
+        return Task.CompletedTask;
+    }
+
     // -- Clone -------------------------------------------------------------------
 
     /// <summary>Clones a stopped VM with byte progress; a cancelled clone leaves no partial bundle.</summary>
@@ -318,12 +341,28 @@ public sealed class VmActivityService
 
     // -- Shared plumbing -----------------------------------------------------------
 
-    private IProgress<RemoteIsoDownloadProgress> ReportProgress(VmActivity activity) =>
-        new Progress<RemoteIsoDownloadProgress>(p =>
+    private IProgress<RemoteIsoDownloadProgress> ReportProgress(VmActivity activity)
+    {
+        // Throttle to ~10 Hz / 1% steps: the downloader reports per MiB chunk,
+        // and a fast mirror would flood the UI thread with row rebinds.
+        var lastReportMs = 0L;
+        var lastPercent = -1.0;
+        return new Progress<RemoteIsoDownloadProgress>(p =>
         {
+            var now = Environment.TickCount64;
+            var percent = p.Percent ?? -1;
+            var done = p.TotalBytes is { } total && p.BytesReceived >= total;
+            if (!done && now - lastReportMs < 100 && percent - lastPercent < 1.0)
+            {
+                return;
+            }
+
+            lastReportMs = now;
+            lastPercent = percent;
             activity.BytesReceived = p.BytesReceived;
             activity.TotalBytes = p.TotalBytes;
         });
+    }
 
     private async Task FailAsync(VmItemViewModel vm, VmActivity activity, string title, Exception ex)
     {

@@ -60,21 +60,7 @@ public sealed partial class MainWindow : Window
             TransientBar.IsOpen = false;
         };
 
-        ViewModel.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(MainViewModel.SelectedVm))
-            {
-                DetailView.Vm = ViewModel.SelectedVm;
-            }
-
-            // UpdateStatus() clears and refills the bound VM list. The list's
-            // TwoWay SelectedItem binding writes back while a change is still
-            // propagating, so running this synchronously inside the
-            // notification re-enters ObservableCollection (CheckReentrancy
-            // throws, XAML stows the exception, the process fail-fasts —
-            // seen as a hard crash right after creating a VM).
-            dispatcher.TryEnqueue(UpdateStatus);
-        };
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         VmFolderText.Text = library.Settings.VmFolder;
         ApplyTheme(library.Settings.Theme);
         UpdateStatus();
@@ -86,9 +72,46 @@ public sealed partial class MainWindow : Window
             Modifiers = Windows.System.VirtualKeyModifiers.Control,
             Key = (Windows.System.VirtualKey)0xBC, // VK_OEM_COMMA
         });
+        // Close is two-phase on purpose: WinUI processes WM_CLOSE nested inside
+        // whatever queued callback is running, and tearing the XAML island down
+        // under a live callback makes every DispatcherQueue.TryEnqueue from
+        // that callback block for the whole teardown (measured 15-60s). So the
+        // first close request is cancelled, the window is hidden (callbacks
+        // drain safely against a hidden window), background operations are
+        // cancelled, and only then is Close issued on a quiet dispatcher.
+        AppWindow.Closing += (_, args) =>
+        {
+            if (_closing)
+            {
+                return; // our own deferred Close — let it proceed
+            }
+
+            args.Cancel = true;
+            _closing = true;
+            ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            AppWindow.Hide();
+            ShutdownAndCloseAsync();
+        };
+
+        Closed += (_, _) => _closing = true;
 
         _ = ViewModel.LoadAsync();
         _ = MaybeCheckForUpdatesAsync();
+    }
+
+    private async void ShutdownAndCloseAsync()
+    {
+        try
+        {
+            await DetailView.Operations!.CancelAllAsync();
+        }
+        catch (Exception)
+        {
+            // Shutdown cleanup is best-effort by design.
+        }
+
+        await Task.Delay(250); // let already-queued callbacks drain on the hidden window
+        DispatcherQueue.TryEnqueue(Close);
     }
 
     private Task InvokeOnUiAsync(Func<Task> work)
@@ -253,7 +276,14 @@ public sealed partial class MainWindow : Window
 
         if (selected is not null && ViewModel.VirtualMachines.Contains(selected))
         {
-            ViewModel.SelectedVm = selected;
+            if (!ReferenceEquals(ViewModel.SelectedVm, selected))
+            {
+                // Setting Selector.SelectedItem mid-collection-mutation makes
+                // XAML re-resolve selection across container generation
+                // (measured: multi-second UI stalls). Defer until the list
+                // and its containers have settled.
+                DispatcherQueue.TryEnqueue(() => ViewModel.SelectedVm = selected);
+            }
         }
     }
 
@@ -271,10 +301,39 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.SelectedVm))
+        {
+            // The SelectedVm notification can fire from any thread — and from
+            // inside UpdateStatus's own list rebuild via the ListView's TwoWay
+            // write-back. A synchronous DetailView.Vm set there runs a full
+            // DP/ComWrappers cascade mid-churn (measured: multi-second UI
+            // stalls), so the assignment is always deferred. During close the
+            // handler is unsubscribed before this can ever run.
+            DispatcherQueue.TryEnqueue(() => DetailView.Vm = ViewModel.SelectedVm);
+        }
+
+        // UpdateStatus() clears and refills the bound VM list. The list's
+        // TwoWay SelectedItem binding writes back while a change is still
+        // propagating, so running this synchronously inside the
+        // notification re-enters ObservableCollection (CheckReentrancy
+        // throws, XAML stows the exception, the process fail-fasts —
+        // seen as a hard crash right after creating a VM).
+        DispatcherQueue.TryEnqueue(UpdateStatus);
+    }
+
     private bool _updatingStatus;
+    private bool _closing;
 
     private void UpdateStatus()
     {
+        // Callbacks queued before Closed still fire during teardown; touching
+        // the list then deadlocks against XAML island destruction.
+        if (_closing)
+        {
+            return;
+        }
         // A queued UpdateStatus can still land inside another one's
         // collection churn (selection write-back lands on the dispatcher
         // too); a nested run would Clear() mid-notification again.
@@ -357,7 +416,7 @@ public sealed partial class MainWindow : Window
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = Content.XamlRoot,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await ShowDialogSafeAsync(dialog) != ContentDialogResult.Primary)
         {
             return;
         }
@@ -397,7 +456,7 @@ public sealed partial class MainWindow : Window
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = Content.XamlRoot,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await ShowDialogSafeAsync(dialog) != ContentDialogResult.Primary)
         {
             return;
         }
@@ -465,7 +524,7 @@ public sealed partial class MainWindow : Window
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = Content.XamlRoot,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary || combo.SelectedItem is not string snapshot)
+        if (await ShowDialogSafeAsync(dialog) != ContentDialogResult.Primary || combo.SelectedItem is not string snapshot)
         {
             return;
         }
@@ -638,6 +697,28 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    
+    /// <summary>
+    /// ContentDialogs are single-instance: showing one while another is still
+    /// finishing its close animation throws and (pre-fix) surfaced as a crash
+    /// dialog. A collision simply loses the race — the user can re-invoke.
+    /// </summary>
+    private static async Task<ContentDialogResult> ShowDialogSafeAsync(ContentDialog dialog)
+    {
+        try
+        {
+            return await dialog.ShowAsync();
+        }
+        catch (Exception ex) when (ex.HResult == unchecked((int)0x80070490))
+        {
+            return ContentDialogResult.None; // ElementNotFound: another dialog still closing
+        }
+        catch (InvalidOperationException)
+        {
+            return ContentDialogResult.None; // only-one-ContentDialog collision
+        }
+    }
+
     private async void OnVmDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if (ViewModel.SelectedVm is { CanStart: true } vm)
@@ -741,7 +822,7 @@ public sealed partial class MainWindow : Window
         {
             XamlRoot = Content.XamlRoot,
         };
-        var result = await dialog.ShowAsync();
+        var result = await ShowDialogSafeAsync(dialog);
         if (result == ContentDialogResult.Primary && dialog.CreatedVm is not null)
         {
             // CreateAsync already added the VM to the library — a reload here
@@ -776,7 +857,7 @@ public sealed partial class MainWindow : Window
                     DefaultButton = ContentDialogButton.Primary,
                     XamlRoot = Content.XamlRoot,
                 };
-                if (await proceed.ShowAsync() != ContentDialogResult.Primary)
+                if (await ShowDialogSafeAsync(proceed) != ContentDialogResult.Primary)
                 {
                     return;
                 }
@@ -827,7 +908,7 @@ public sealed partial class MainWindow : Window
         {
             XamlRoot = Content.XamlRoot,
         };
-        await dialog.ShowAsync();
+        await ShowDialogSafeAsync(dialog);
         VmFolderText.Text = ViewModel.Library.Settings.VmFolder;
         UpdateStatus();
     }
@@ -868,7 +949,7 @@ public sealed partial class MainWindow : Window
                     DefaultButton = ContentDialogButton.Primary,
                     XamlRoot = Content.XamlRoot,
                 };
-                if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+                if (await ShowDialogSafeAsync(dialog) == ContentDialogResult.Primary)
                 {
                     OnSettingsClick(this, new RoutedEventArgs());
                 }

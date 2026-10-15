@@ -234,7 +234,24 @@ public sealed class VmItemViewModel : ObservableObject, IDisposable
 
     private int _serialPort;
 
-    public void Dispose() => Process?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+    /// <summary>
+    /// Best-effort shutdown cleanup; see <see cref="VmLibraryService.Dispose"/>
+    /// for why this must never block the UI thread.
+    /// </summary>
+    public void Dispose()
+    {
+        try
+        {
+            _ = Process?.DisposeAsync().AsTask();
+        }
+        catch (Exception)
+        {
+            // Shutdown cleanup is best-effort by design.
+        }
+
+        Process = null;
+        Status = VmStatus.Stopped;
+    }
 }
 
 /// <summary>Scans the VM folder, starts/stops VMs, owns runtimes and launchers.</summary>
@@ -587,11 +604,23 @@ public sealed class VmLibraryService : IDisposable
         settings.Save();
     }
 
+    /// <summary>
+    /// Best-effort shutdown cleanup. Never blocks: the process is going away,
+    /// and a sync-over-async wait here would hang the closing UI thread
+    /// while QEMU teardown (process wait, QMP close) is still in flight.
+    /// </summary>
     public void Dispose()
     {
         foreach (var vm in VirtualMachines)
         {
-            vm.Dispose();
+            try
+            {
+                _ = vm.Process?.DisposeAsync().AsTask();
+            }
+            catch (Exception)
+            {
+                // Shutdown cleanup is best-effort by design.
+            }
         }
     }
 }

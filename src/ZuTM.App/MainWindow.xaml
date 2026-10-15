@@ -24,9 +24,11 @@
     </Grid.RowDefinitions>
 
     <!-- Custom title bar: app identity + primary actions live in the OS title
-         bar (ExtendsContentIntoTitleBar + SetTitleBar). Interactive children
+         bar (ExtendsContentIntoTitleBar + SetTitleBar). 48px tall with
+         centered content — the Windows 11 title-row rhythm — and 16px side
+         padding so nothing crowds the window border. Interactive children
          inside still receive input; the rest of the row drags the window. -->
-    <Grid x:Name="AppTitleBar" Grid.Row="0" Padding="12,8,12,8" ColumnSpacing="8"
+    <Grid x:Name="AppTitleBar" Grid.Row="0" MinHeight="48" Padding="16,0,16,0" ColumnSpacing="8"
           Background="Transparent">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
@@ -95,8 +97,9 @@
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Pane header: title + collapse toggle -->
-        <Grid Grid.Row="0" Padding="12,8,4,8" ColumnSpacing="4">
+        <!-- Pane header: title + collapse toggle (left edge aligned with the
+             title bar's 16px padding) -->
+        <Grid Grid.Row="0" Padding="16,10,4,10" ColumnSpacing="4">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />

@@ -329,15 +329,23 @@ the None radio fired its handler mid-`InitializeComponent`, killing the New-VM
 dialog (initial check moved to the constructor). Three full distro runs
 completed through the UI: dialog closes fast, download runs in background,
 66 MiB Alpine ISO lands complete in the bundle with the CD drive attached and
-no `.part` leftovers. **Not runtime-verified in this pass** (no interactive
-session): drag-drop visuals, theme preview rendering. The QEMU-backed E2E
-suite (`dotnet test tests/ZuTM.E2E`, ZUTM_E2E=1) could not complete: it
-wedged on the pre-existing CliAndUiTests CLI hang — a ZuTM CLI process spun
-at 100% CPU for ~49 minutes (2910 CPU-seconds) and survived RunCli's 240 s
-tree-kill (the `cmd /c` layout re-parents the CLI, which
-`Kill(entireProcessTree)` misses). Evidence and next steps live in the
-session memory (zutm-e2e-cli-spin); that bug predates this UI work and
-blocks all E2E runs until fixed.
+no `.part` leftovers. **Runtime-verified again after review feedback (close
+after download + title-area spacing):** the close path initially hung the UI
+thread for 15-60s (the exact "(Not Responding)" title-bar state) — three
+minidumps traced it to (1) `FreeLibrary` of the WHV probe library taking the
+loader lock against XAML teardown, (2) the ListView's TwoWay `SelectedVm`
+write-back firing the detail-view DP set from teardown-time callbacks, and
+(3) `DispatcherQueue.TryEnqueue` blocking for the whole island teardown when
+called from a callback straddling WM_CLOSE. Fixes: process-cached WHV library
+handle (never freed), handler unsubscribed at `AppWindow.Closing`, always-
+deferred `DetailView.Vm` assignment, deferred selection re-apply, throttled
+(~10 Hz) progress callbacks, non-blocking VM dispose, and a two-phase close
+(cancel → hide → cancel operations → close on a quiet dispatcher). Verified:
+close after a completed 66 MiB download now exits in ~3 s with zero
+unresponsive samples. UIA-probe note: `FindAll(TrueCondition)` over a window
+enumerates on the target's UI thread and starves it — probes must use
+name/id-conditioned `FindFirst`. **Still eyeballs-only:** drag-drop visuals,
+theme preview rendering.
 
 Constraints for every phase: keep every `AutomationProperties.AutomationId`
 the E2E suites reference; all builds target win-x64 **and** win-arm64 with

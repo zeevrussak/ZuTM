@@ -65,7 +65,18 @@ public sealed class AcceleratorDetector
             return WhvProbe.ApiUnavailable;
         }
 
-        if (!NativeLibrary.TryLoad("WinHvPlatform.dll", out var handle))
+        // The handle is process-cached, never freed: FreeLibrary mid-process
+        // takes the loader lock, which deadlocks against XAML teardown when
+        // this probe runs during window close (observed as a two-thread
+        // loader-lock hang; the OS reclaims the library at exit anyway).
+        if (WhvLibraryHandle is null && !WhvProbeAttempted)
+        {
+            WhvProbeAttempted = true;
+            NativeLibrary.TryLoad("WinHvPlatform.dll", out var handle);
+            WhvLibraryHandle = handle; // null = WHP optional feature absent on this host
+        }
+
+        if (WhvLibraryHandle is not { } library)
         {
             return WhvProbe.ApiUnavailable; // WHP optional feature absent on this host
         }
@@ -75,7 +86,7 @@ public sealed class AcceleratorDetector
             // The export is "WHvGetCapability" — capital H — and GetProcAddress is
             // case-sensitive; the wrong case reads as "feature not enabled" on every
             // WHP-enabled machine, silently forcing TCG everywhere.
-            if (!NativeLibrary.TryGetExport(handle, "WHvGetCapability", out var address))
+            if (!NativeLibrary.TryGetExport(library, "WHvGetCapability", out var address))
             {
                 return WhvProbe.ApiUnavailable; // stub DLL without the WHv exports — feature not enabled
             }
@@ -91,11 +102,11 @@ public sealed class AcceleratorDetector
         {
             return WhvProbe.ApiUnavailable; // unreadable/unexpected export surface — treat as feature-off
         }
-        finally
-        {
-            NativeLibrary.Free(handle);
-        }
     }
+
+    private static nint? WhvLibraryHandle;
+
+    private static bool WhvProbeAttempted;
 
     /// <summary>Picks the acceleration QEMU should use for a guest architecture.</summary>
     /// <param name="guestArchitecture">QEMU guest architecture name.</param>
