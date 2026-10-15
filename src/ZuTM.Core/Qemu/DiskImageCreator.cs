@@ -99,7 +99,7 @@ public sealed record DiskImageSpec
 }
 
 /// <summary>Creates blank disk images via the bundled <c>qemu-img.exe</c>.</summary>
-public sealed class DiskImageCreator
+public sealed partial class DiskImageCreator
 {
     private readonly string _qemuImgPath;
 

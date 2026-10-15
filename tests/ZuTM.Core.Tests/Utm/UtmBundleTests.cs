@@ -356,6 +356,66 @@ public sealed class UtmBundleTests : IDisposable
             clone.ResolveDriveImagePath(cloneRemoteDrive));
     }
 
+    [Fact]
+    public async Task Clone_KeepsLocalExternalPath_WhenReferencedFileExists()
+    {
+        WriteMinimalBundle(BundlePath());
+        var bundle = UtmBundle.Load(BundlePath());
+        var existingPath = Path.Combine(_tempRoot, "downloads", "alpine-virt.iso");
+        Directory.CreateDirectory(Path.GetDirectoryName(existingPath)!);
+        await File.WriteAllTextAsync(existingPath, "iso");
+
+        var externalCd = new UtmDrive { Identifier = "cd-download", ImageType = UtmValues.DriveImageType.Cd, IsReadOnly = true };
+        bundle.Configuration = bundle.Configuration with { Drives = [externalCd] };
+        bundle.State = bundle.State with
+        {
+            ExternalDrivePaths = new Dictionary<string, string> { [externalCd.Identifier] = existingPath },
+        };
+
+        var clone = bundle.Clone();
+
+        Assert.Equal(existingPath, clone.State.ExternalDrivePaths[externalCd.Identifier]);
+    }
+
+    [Fact]
+    public async Task CloneAsync_CopiesPayload_ReportsCumulativeProgress()
+    {
+        WriteMinimalBundle(BundlePath());
+        var bundle = UtmBundle.Load(BundlePath());
+        var reports = new List<RemoteIsoDownloadProgress>();
+
+        var clone = await bundle.CloneAsync(progress: new InlineProgress(reports.Add));
+
+        Assert.True(Directory.Exists(clone.BundlePath));
+        Assert.Equal(
+            await File.ReadAllTextAsync(Path.Combine(BundlePath(), "Data", "disk-0.qcow2")),
+            await File.ReadAllTextAsync(Path.Combine(clone.BundlePath, "Data", "disk-0.qcow2")));
+        var last = Assert.Single(reports);
+        Assert.Equal("fake qcow2".Length, last.BytesReceived);
+        Assert.Equal("fake qcow2".Length, last.TotalBytes);
+    }
+
+    [Fact]
+    public async Task CloneAsync_Cancellation_RemovesPartialCloneDirectory()
+    {
+        WriteMinimalBundle(BundlePath());
+        var bundle = UtmBundle.Load(BundlePath());
+        var cloneTarget = BundlePath("Cancelled copy.utm");
+        using var cancellation = new CancellationTokenSource();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => bundle.CloneAsync(cloneTarget, progress: new InlineProgress(_ => cancellation.Cancel()),
+                cancellationToken: cancellation.Token));
+
+        Assert.False(Directory.Exists(cloneTarget));
+    }
+
+    private sealed class InlineProgress(Action<RemoteIsoDownloadProgress> action)
+        : IProgress<RemoteIsoDownloadProgress>
+    {
+        public void Report(RemoteIsoDownloadProgress value) => action(value);
+    }
+
     private sealed class ProgressCollector : IProgress<RemoteIsoDownloadProgress>
     {
         public List<RemoteIsoDownloadProgress> Reports { get; } = [];

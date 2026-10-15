@@ -238,6 +238,37 @@ public sealed class UtmBundle
         };
     }
 
+    /// <summary>
+    /// Async variant of <see cref="ImportDriveImage"/> with byte progress;
+    /// cancellation removes the partial copy from Data/.
+    /// </summary>
+    public async Task<UtmDrive> ImportDriveImageAsync(
+        string sourceImagePath,
+        bool isReadOnly = false,
+        IProgress<RemoteIsoDownloadProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceImagePath);
+        if (!File.Exists(sourceImagePath))
+        {
+            throw new FileNotFoundException("Drive image not found.", sourceImagePath);
+        }
+
+        Directory.CreateDirectory(DataDirectory);
+        var fileName = UniqueDataFileName(Path.GetFileName(sourceImagePath));
+        await FileCopy.CopyWithProgressAsync(
+            sourceImagePath, Path.Combine(DataDirectory, fileName), progress, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new UtmDrive
+        {
+            ImageName = fileName,
+            ImageType = UtmValues.DriveImageType.Disk,
+            Interface = UtmValues.DriveInterface.Virtio,
+            IsReadOnly = isReadOnly,
+        };
+    }
+
     /// <summary>Removes a drive's bundled image file from Data/ (external images are left in place).</summary>
     public void DeleteDriveImage(UtmDrive drive)
     {
@@ -305,6 +336,73 @@ public sealed class UtmBundle
     /// </summary>
     public UtmBundle Clone(string? targetBundlePath = null, bool rename = true)
     {
+        var clone = PrepareClone(targetBundlePath, rename);
+
+        // Copy every payload file verbatim (qcow2 disks, efi_vars, logs are skipped).
+        if (Directory.Exists(DataDirectory))
+        {
+            Directory.CreateDirectory(clone.DataDirectory);
+            foreach (var file in Directory.EnumerateFiles(DataDirectory))
+            {
+                File.Copy(file, Path.Combine(clone.DataDirectory, Path.GetFileName(file)));
+            }
+        }
+
+        return clone;
+    }
+
+    /// <summary>
+    /// Async clone with byte progress for multi-gigabyte payloads. Cancellation
+    /// or failure removes the partial clone directory, so a half-copied clone
+    /// can never appear in the VM list.
+    /// </summary>
+    public async Task<UtmBundle> CloneAsync(
+        string? targetBundlePath = null,
+        bool rename = true,
+        IProgress<RemoteIsoDownloadProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var clone = PrepareClone(targetBundlePath, rename);
+        try
+        {
+            var payloadFiles = Directory.Exists(DataDirectory)
+                ? Directory.EnumerateFiles(DataDirectory).ToList()
+                : [];
+            var totalBytes = payloadFiles.Sum(f => new FileInfo(f).Length);
+            var copied = 0L;
+            Directory.CreateDirectory(clone.DataDirectory);
+
+            foreach (var file in payloadFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await using var source = new FileStream(
+                    file, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, useAsync: true);
+                await using var destination = new FileStream(
+                    Path.Combine(clone.DataDirectory, Path.GetFileName(file)),
+                    FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, useAsync: true);
+
+                var buffer = new byte[1024 * 1024];
+                int read;
+                while ((read = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    copied += read;
+                    progress?.Report(new RemoteIsoDownloadProgress(copied, totalBytes));
+                }
+            }
+
+            return clone;
+        }
+        catch
+        {
+            TryDeleteDirectory(clone.BundlePath);
+            throw;
+        }
+    }
+
+    /// <summary>Validates the target, derives the renamed configuration, and stages the clone on disk.</summary>
+    private UtmBundle PrepareClone(string? targetBundlePath, bool rename)
+    {
         if (!Directory.Exists(BundlePath))
         {
             throw new DirectoryNotFoundException($"Bundle directory not found: {BundlePath}");
@@ -335,29 +433,38 @@ public sealed class UtmBundle
         var clone = new UtmBundle(
             Path.GetFullPath(targetBundlePath),
             configuration,
-            Path.Combine(targetBundlePath, UtmBundleFiles.DataDirectory));
-
-        // Remote URLs are host-independent, so a clone keeps streaming from the
-        // same distributor URL; local external paths stay machine-specific and
-        // are not copied.
-        clone.State = State with
+            Path.Combine(targetBundlePath, UtmBundleFiles.DataDirectory))
         {
-            ExternalDrivePaths = new Dictionary<string, string>(
-                State.ExternalDrivePaths.Where(kv => RemoteImage.IsRemoteLocation(kv.Value))),
+            State = State with { ExternalDrivePaths = CloneExternalDrivePaths() },
         };
 
         clone.Save();
-
-        // Copy every payload file verbatim (qcow2 disks, efi_vars, logs are skipped).
-        if (Directory.Exists(DataDirectory))
-        {
-            Directory.CreateDirectory(clone.DataDirectory);
-            foreach (var file in Directory.EnumerateFiles(DataDirectory))
-            {
-                File.Copy(file, Path.Combine(clone.DataDirectory, Path.GetFileName(file)));
-            }
-        }
-
         return clone;
+    }
+
+    /// <summary>
+    /// External references a clone carries. Remote URLs are host-independent
+    /// and always survive; local external paths survive only while the
+    /// referenced file still exists on this machine (downloads-folder ISOs),
+    /// so a clone keeps its installer instead of silently losing its CD.
+    /// </summary>
+    private Dictionary<string, string> CloneExternalDrivePaths() =>
+        new(State.ExternalDrivePaths.Where(kv =>
+            RemoteImage.IsRemoteLocation(kv.Value) || File.Exists(kv.Value)));
+
+    private static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            Directory.Delete(path, recursive: true);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // Already gone — that is the goal.
+        }
+        catch (IOException)
+        {
+            // Best effort — never mask the original failure.
+        }
     }
 }
