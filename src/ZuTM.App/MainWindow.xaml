@@ -39,7 +39,10 @@
         <TextBlock Text="ZuTM" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
       </StackPanel>
 
-      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+      <!-- 148px margin keeps the actions clear of the caption buttons that
+           the XAML island draws at the top-right in ExtendsContentIntoTitleBar. -->
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
+                  Margin="0,0,148,0">
           <ProgressRing Width="16" Height="16"
                         IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
                         Visibility="{x:Bind local:Converters.ToVisibility(ViewModel.IsBusy), Mode=OneWay}" />
@@ -62,12 +65,8 @@
               <KeyboardAccelerator Key="F5" />
             </Button.KeyboardAccelerators>
           </Button>
-          <Button Content="Settings" Click="OnSettingsClick" ToolTipService.ToolTip="Open settings (Ctrl+,)"
-                  AutomationProperties.AutomationId="SettingsButton">
-            <Button.KeyboardAccelerators>
-              <KeyboardAccelerator Key="188" Modifiers="Control" /> <!-- 188 = VirtualKey.Comma; not XAML-nameable -->
-            </Button.KeyboardAccelerators>
-          </Button>
+          <Button x:Name="SettingsButton" Content="Settings" Click="OnSettingsClick" ToolTipService.ToolTip="Open settings (Ctrl+,)"
+                  AutomationProperties.AutomationId="SettingsButton" />
         </StackPanel>
     </Grid>
 
@@ -110,6 +109,7 @@
         </Grid>
 
         <ListView
+            x:Name="VmList"
             Grid.Row="1"
             ItemsSource="{x:Bind ViewModel.VirtualMachines, Mode=OneWay}"
             SelectedItem="{x:Bind ViewModel.SelectedVm, Mode=TwoWay}"

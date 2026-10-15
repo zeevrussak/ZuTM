@@ -35,6 +35,9 @@ public sealed partial class NewVmDialog : ContentDialog
             AllocationBox.IsEnabled = SelectedFormat().SupportsFixedAllocation();
         PrimaryButtonClick += OnPrimaryButtonClick;
         Opened += (_, _) => NameBox.Focus(FocusState.Keyboard);
+        // Set after InitializeComponent: checking the radio in XAML would fire
+        // the handler while the panels it toggles are still null.
+        NoneSourceRadio.IsChecked = true;
         RefreshStreamCatalog();
         _ = LoadUsbRouteListAsync();
     }

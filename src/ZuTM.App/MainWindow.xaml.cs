@@ -79,6 +79,14 @@ public sealed partial class MainWindow : Window
         ApplyTheme(library.Settings.Theme);
         UpdateStatus();
 
+        // Ctrl+, can't be written in XAML: the runtime parser rejects numeric
+        // key codes and the compiler rejects the name "Comma".
+        SettingsButton.KeyboardAccelerators.Add(new KeyboardAccelerator
+        {
+            Modifiers = Windows.System.VirtualKeyModifiers.Control,
+            Key = (Windows.System.VirtualKey)0xBC, // VK_OEM_COMMA
+        });
+
         _ = ViewModel.LoadAsync();
         _ = MaybeCheckForUpdatesAsync();
     }

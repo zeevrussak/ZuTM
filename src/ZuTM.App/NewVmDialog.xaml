@@ -28,7 +28,7 @@
       <TextBlock Text="Install source" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
       <StackPanel Spacing="6">
         <RadioButton x:Name="NoneSourceRadio" GroupName="InstallSource" Content="None — boot from the disk (or attach media later)"
-                     IsChecked="True" Checked="OnSourceNoneChecked" />
+                     Checked="OnSourceNoneChecked" />
         <RadioButton x:Name="LocalIsoRadio" GroupName="InstallSource" Content="Local ISO file"
                      Checked="OnSourceLocalChecked" />
         <RadioButton x:Name="DownloadRadio" GroupName="InstallSource" Content="Download a Linux distribution"
@@ -76,7 +76,7 @@
                  Visibility="Collapsed" />
 
       <!-- Everything else: collapsed unless the user wants it. -->
-      <Expander Header="Customize — machine, CPUs, USB, disk format" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+      <Expander x:Name="CustomizeExpander" Header="Customize — machine, CPUs, USB, disk format" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
         <StackPanel Spacing="12">
           <ComboBox x:Name="TargetBox" Header="Machine" SelectedIndex="0" MinWidth="200">
             <ComboBoxItem Content="q35 (modern PC)" Tag="q35" />
