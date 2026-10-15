@@ -10,66 +10,108 @@
     SecondaryButtonText="Cancel"
     DefaultButton="Primary">
 
-  <ScrollViewer MinWidth="520" MaxHeight="560">
+  <ScrollViewer MinWidth="540" MaxHeight="560">
     <StackPanel Spacing="10" Padding="0,4">
       <TextBox x:Name="NameBox" Header="Name" AutomationProperties.AutomationId="CfgName" />
       <TextBox x:Name="NotesBox" Header="Notes" AcceptsReturn="True" Height="64" TextWrapping="Wrap" />
 
-      <TextBlock Text="System" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
-      <TextBox x:Name="ArchitectureBox" Header="Architecture (e.g. x86_64, aarch64)" />
-      <TextBox x:Name="TargetBox" Header="Machine (e.g. q35, virt)" />
-      <TextBox x:Name="CpuBox" Header="CPU model ('default' = machine default)" />
-      <NumberBox x:Name="CpuCountBox" Header="vCPUs (0 = match host)" Minimum="0" Maximum="64" SpinButtonPlacementMode="Compact" />
-      <NumberBox x:Name="MemoryBox" Header="Memory (MiB)" Minimum="128" Maximum="131072" SmallChange="512" SpinButtonPlacementMode="Compact" />
-
-      <TextBlock Text="QEMU" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
-      <ToggleSwitch x:Name="UefiToggle" Header="UEFI boot" OnContent="On" OffContent="Off" />
-      <ToggleSwitch x:Name="HypervisorToggle" Header="Hypervisor acceleration (WHPX when available)" OnContent="On" OffContent="Off" />
-      <ToggleSwitch x:Name="RtcToggle" Header="RTC local time" OnContent="On" OffContent="Off" />
-      <ToggleSwitch x:Name="DebugLogToggle" Header="Debug log (Data\debug.log)" OnContent="On" OffContent="Off" />
-
-      <TextBlock Text="Display" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
-      <TextBox x:Name="DisplayBox" Header="Graphics (e.g. virtio-gpu-pci, QXL) — empty = headless" />
-
-      <TextBlock Text="Network" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
-      <TextBox x:Name="NetworkModeBox" Header="Mode (Shared / Host / Emulated / Bridged)" />
-      <TextBox x:Name="NetworkHardwareBox" Header="NIC (e.g. virtio-net-pci, e1000)" />
-      <TextBox x:Name="MacBox" Header="MAC address" />
-
-      <TextBlock Text="USB" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
-      <ComboBox x:Name="UsbBusBox" Header="USB bus support" MinWidth="220" SelectedIndex="0">
-        <ComboBoxItem Content="Default" Tag="Default" />
-        <ComboBoxItem Content="USB 2.0" Tag="USB 2.0" />
-        <ComboBoxItem Content="USB 3.0" Tag="USB 3.0" />
-        <ComboBoxItem Content="None" Tag="None" />
-      </ComboBox>
-      <TextBlock Text="Devices routed into this VM on every start" Margin="0,4,0,0" />
-      <ScrollViewer MaxHeight="132" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="2">
-          <ItemsControl x:Name="UsbRouteList">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:UsbHostRow">
-                <CheckBox Content="{x:Bind Title}" IsChecked="{x:Bind IsAttached, Mode=OneTime}"
-                          Checked="OnUsbRouteChecked" Unchecked="OnUsbRouteUnchecked"
-                          ToolTipService.ToolTip="{x:Bind Detail}"
-                          AutomationProperties.AutomationId="CfgUsbRouteToggle" />
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <TextBlock x:Name="UsbStatusText" Style="{StaticResource CaptionTextBlockStyle}"
-                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      <!-- Constrained values are choices, not free text: a typo here used to
+           surface as an inexplicable QEMU boot failure. Editable combos keep
+           an escape hatch for values the list doesn't know. -->
+      <Expander Header="System" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="True">
+        <StackPanel Spacing="10">
+          <ComboBox x:Name="ArchitectureBox" Header="Architecture" IsEditable="True" MinWidth="220">
+            <x:String>x86_64</x:String>
+            <x:String>aarch64</x:String>
+          </ComboBox>
+          <ComboBox x:Name="TargetBox" Header="Machine" IsEditable="True" MinWidth="220">
+            <x:String>q35</x:String>
+            <x:String>virt</x:String>
+            <x:String>pc</x:String>
+          </ComboBox>
+          <TextBox x:Name="CpuBox" Header="CPU model ('default' = machine default)" />
+          <NumberBox x:Name="CpuCountBox" Header="vCPUs (0 = match host)" Minimum="0" Maximum="64" SpinButtonPlacementMode="Compact" />
+          <NumberBox x:Name="MemoryBox" Header="Memory (MiB)" Minimum="128" Maximum="131072" SmallChange="512" SpinButtonPlacementMode="Compact" />
         </StackPanel>
-      </ScrollViewer>
-      <Button Content="Rescan host devices" Click="OnUsbRescanClick" HorizontalAlignment="Left" />
+      </Expander>
 
-      <TextBlock Text="Sharing" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,0" />
-      <ComboBox x:Name="SharingModeBox" Header="Folder sharing" MinWidth="220" SelectedIndex="0">
-        <ComboBoxItem Content="None" Tag="None" />
-        <ComboBoxItem Content="WebDAV (SPICE; needs spice-webdavd in guest)" Tag="WebDAV" />
-        <ComboBoxItem Content="VirtFS (limited on Windows QEMU)" Tag="VirtFS" />
-      </ComboBox>
-      <ToggleSwitch x:Name="SharingReadOnlyToggle" Header="Shared folder read-only" OnContent="On" OffContent="Off" />
-      <ToggleSwitch x:Name="ClipboardToggle" Header="Clipboard sharing (with SPICE client attached)" OnContent="On" OffContent="Off" />
+      <Expander Header="QEMU" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+        <StackPanel Spacing="10">
+          <ToggleSwitch x:Name="UefiToggle" Header="UEFI boot" OnContent="On" OffContent="Off" />
+          <ToggleSwitch x:Name="HypervisorToggle" Header="Hypervisor acceleration (WHPX when available)" OnContent="On" OffContent="Off" />
+          <ToggleSwitch x:Name="RtcToggle" Header="RTC local time" OnContent="On" OffContent="Off" />
+          <ToggleSwitch x:Name="DebugLogToggle" Header="Debug log (Data\debug.log)" OnContent="On" OffContent="Off" />
+        </StackPanel>
+      </Expander>
+
+      <Expander Header="Display and network" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+        <StackPanel Spacing="10">
+          <ComboBox x:Name="DisplayBox" Header="Graphics — empty = headless" IsEditable="True" MinWidth="260">
+            <x:String>virtio-gpu-pci</x:String>
+            <x:String>virtio-gpu-gl-pci</x:String>
+            <x:String>QXL</x:String>
+            <x:String>VGA</x:String>
+            <x:String>ramfb</x:String>
+            <x:String>bochs</x:String>
+          </ComboBox>
+          <ComboBox x:Name="NetworkModeBox" Header="Mode" IsEditable="True" MinWidth="220">
+            <x:String>Shared</x:String>
+            <x:String>Host</x:String>
+            <x:String>Emulated</x:String>
+            <x:String>Bridged</x:String>
+          </ComboBox>
+          <ComboBox x:Name="NetworkHardwareBox" Header="NIC" IsEditable="True" MinWidth="260">
+            <x:String>virtio-net-pci</x:String>
+            <x:String>virtio-net-device</x:String>
+            <x:String>e1000</x:String>
+            <x:String>e1000e</x:String>
+            <x:String>rtl8139</x:String>
+            <x:String>usb-net</x:String>
+          </ComboBox>
+          <TextBox x:Name="MacBox" Header="MAC address" />
+        </StackPanel>
+      </Expander>
+
+      <Expander Header="USB" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+        <StackPanel Spacing="10">
+          <ComboBox x:Name="UsbBusBox" Header="USB bus support" MinWidth="220" SelectedIndex="0">
+            <ComboBoxItem Content="Default" Tag="Default" />
+            <ComboBoxItem Content="USB 2.0" Tag="USB 2.0" />
+            <ComboBoxItem Content="USB 3.0" Tag="USB 3.0" />
+            <ComboBoxItem Content="None" Tag="None" />
+          </ComboBox>
+          <TextBlock Text="Devices routed into this VM on every start" Margin="0,4,0,0" />
+          <ScrollViewer MaxHeight="132" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="2">
+              <ItemsControl x:Name="UsbRouteList">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:UsbHostRow">
+                    <CheckBox Content="{x:Bind Title}" IsChecked="{x:Bind IsAttached, Mode=OneTime}"
+                              Checked="OnUsbRouteChecked" Unchecked="OnUsbRouteUnchecked"
+                              ToolTipService.ToolTip="{x:Bind Detail}"
+                              AutomationProperties.AutomationId="CfgUsbRouteToggle" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock x:Name="UsbStatusText" Style="{StaticResource CaptionTextBlockStyle}"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+          </ScrollViewer>
+          <Button Content="Rescan host devices" Click="OnUsbRescanClick" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Expander>
+
+      <Expander Header="Sharing" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+        <StackPanel Spacing="10">
+          <ComboBox x:Name="SharingModeBox" Header="Folder sharing" MinWidth="220" SelectedIndex="0">
+            <ComboBoxItem Content="None" Tag="None" />
+            <ComboBoxItem Content="WebDAV (SPICE; needs spice-webdavd in guest)" Tag="WebDAV" />
+            <ComboBoxItem Content="VirtFS (limited on Windows QEMU)" Tag="VirtFS" />
+          </ComboBox>
+          <ToggleSwitch x:Name="SharingReadOnlyToggle" Header="Shared folder read-only" OnContent="On" OffContent="Off" />
+          <ToggleSwitch x:Name="ClipboardToggle" Header="Clipboard sharing (with SPICE client attached)" OnContent="On" OffContent="Off" />
+        </StackPanel>
+      </Expander>
 
       <InfoBar x:Name="ErrorBar" IsOpen="False" Severity="Error" />
     </StackPanel>
