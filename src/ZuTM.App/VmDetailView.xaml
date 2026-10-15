@@ -114,14 +114,14 @@
         </Grid>
       </Border>
 
-      <TextBlock Text="System" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
+      <TextBlock Text="System" Style="{StaticResource SubtitleTextBlockStyle}" Margin="{StaticResource SectionHeaderMargin}" />
       <local:SettingsRow Label="Architecture" Value="{x:Bind Vm.Architecture, Mode=OneWay}" />
       <local:SettingsRow Label="Machine" Value="{x:Bind Vm.Bundle.Configuration.System.Target, Mode=OneWay}" />
       <local:SettingsRow Label="Memory" Value="{x:Bind MemoryText, Mode=OneWay}" />
       <local:SettingsRow Label="Virtual CPUs" Value="{x:Bind CpuText, Mode=OneWay}" />
       <local:SettingsRow Label="Boot" Value="{x:Bind BootText, Mode=OneWay}" />
 
-      <TextBlock Text="Drives" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
+      <TextBlock Text="Drives" Style="{StaticResource SubtitleTextBlockStyle}" Margin="{StaticResource SectionHeaderMargin}" />
       <ItemsControl ItemsSource="{x:Bind DriveRows, Mode=OneWay}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:DetailRow">
@@ -136,7 +136,7 @@
       <!-- Live removable media & USB routing (running VM, over QMP) -->
       <StackPanel Spacing="4"
                   Visibility="{x:Bind local:Converters.ToVisibility(CanHotPlug), Mode=OneWay}">
-        <TextBlock Text="Removable media" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
+        <TextBlock Text="Removable media" Style="{StaticResource SubtitleTextBlockStyle}" Margin="{StaticResource SectionHeaderMargin}" />
         <ItemsControl ItemsSource="{x:Bind MediaRows, Mode=OneWay}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:CdTrayRow">
@@ -181,26 +181,29 @@
                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
       </StackPanel>
 
-      <TextBlock Text="Display" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
-      <local:SettingsRow Label="Graphics" Value="{x:Bind DisplayText, Mode=OneWay}" />
+      <Expander Header="Display and network" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,8,0,0">
+        <StackPanel Spacing="4">
+          <local:SettingsRow Label="Graphics" Value="{x:Bind DisplayText, Mode=OneWay}" />
+          <ItemsControl ItemsSource="{x:Bind NetworkRows, Mode=OneWay}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:DetailRow">
+                <local:SettingsRow Label="{x:Bind Label}" Value="{x:Bind Value}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Expander>
 
-      <TextBlock Text="Network" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
-      <ItemsControl ItemsSource="{x:Bind NetworkRows, Mode=OneWay}">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="vm:DetailRow">
-            <local:SettingsRow Label="{x:Bind Label}" Value="{x:Bind Value}" />
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-
-      <TextBlock Text="Notes" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
-      <TextBlock Text="{x:Bind Vm.Bundle.Configuration.Information.Notes, Mode=OneWay}"
-                 Style="{StaticResource BodyTextBlockStyle}" IsTextSelectionEnabled="True"
-                 TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      <Expander Header="Notes" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,4,0,0">
+        <TextBlock Text="{x:Bind Vm.Bundle.Configuration.Information.Notes, Mode=OneWay}"
+                   Style="{StaticResource BodyTextBlockStyle}" IsTextSelectionEnabled="True"
+                   TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+      </Expander>
 
       <!-- Serial console -->
-      <TextBlock Text="Serial console" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
-      <local:SerialConsoleControl x:Name="Terminal" AutomationProperties.AutomationId="SerialConsole" />
+      <Expander Header="Serial console" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,4,0,0">
+        <local:SerialConsoleControl x:Name="Terminal" AutomationProperties.AutomationId="SerialConsole" />
+      </Expander>
     </StackPanel>
   </StackPanel>
 </UserControl>

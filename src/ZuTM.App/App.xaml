@@ -13,7 +13,6 @@
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
       </ResourceDictionary.MergedDictionaries>
 
-      <x:Double x:Key="NavPaneWidth">320</x:Double>
       <Thickness x:Key="SectionHeaderMargin">0,16,0,4</Thickness>
 
       <Style x:Key="SettingsCardStyle" TargetType="Border">

@@ -21,12 +21,15 @@
               ToolTipService.ToolTip="Attach to this VM's serial console (TCP endpoint)" />
       <Button x:Name="DetachButton" Content="Detach" Click="OnDetachClick" IsEnabled="False"
               AutomationProperties.AutomationId="SerialDetachButton" />
+      <Button x:Name="ClearButton" Content="Clear" Click="OnClearClick"
+              AutomationProperties.AutomationId="SerialClearButton"
+              ToolTipService.ToolTip="Clear the console history shown here (the scrollback restarts from now)" />
       <TextBlock x:Name="StatusText" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"
                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Not attached" />
     </StackPanel>
 
     <TextBox Grid.Row="1" x:Name="Output" IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas"
-             AcceptsReturn="True" PlaceholderText="Serial console output appears here…"
+             AcceptsReturn="True" PlaceholderText="Serial console output appears here…" MinHeight="220"
              AutomationProperties.AutomationId="SerialOutput" />
 
     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6">

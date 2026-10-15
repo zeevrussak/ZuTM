@@ -513,6 +513,123 @@ public sealed partial class MainWindow : Window
             _ => ElementTheme.Default,
         };
 
+    // -- Drag & drop (.utm import, .iso mount) --------------------------------------
+
+    private const string StorageItemsFormat = "StorageItems"; // StandardDataTypes.StorageItems
+
+    private void OnRootDragOver(object sender, DragEventArgs e)
+    {
+        var hasUsableItem = e.DataView.Contains(StorageItemsFormat);
+        e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+        e.DragUIOverride.Caption = "Drop a .utm bundle to import it, or an .iso to mount it into the running VM";
+        e.DragUIOverride.IsCaptionVisible = true;
+        e.Handled = hasUsableItem;
+    }
+
+    private async void OnRootDrop(object sender, DragEventArgs e)
+    {
+        var deferral = e.GetDeferral();
+        try
+        {
+            if (!e.DataView.Contains(StorageItemsFormat))
+            {
+                return;
+            }
+
+            var items = await e.DataView.GetStorageItemsAsync();
+            foreach (var item in items)
+            {
+                switch (item)
+                {
+                    case Windows.Storage.StorageFolder { Path: { Length: > 0 } folderPath }
+                        when folderPath.EndsWith(".utm", StringComparison.OrdinalIgnoreCase):
+                        await ImportDroppedBundleAsync(folderPath);
+                        break;
+                    case Windows.Storage.StorageFile { Path: { Length: > 0 } filePath }
+                        when filePath.EndsWith(".iso", StringComparison.OrdinalIgnoreCase):
+                        await MountDroppedIsoAsync(filePath);
+                        break;
+                }
+            }
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    private async Task ImportDroppedBundleAsync(string bundlePath)
+    {
+        var target = Path.Combine(
+            ViewModel.Library.Settings.VmFolder,
+            Path.GetFileName(bundlePath.TrimEnd(Path.DirectorySeparatorChar)));
+        if (string.Equals(
+                Path.GetFullPath(bundlePath.TrimEnd(Path.DirectorySeparatorChar)),
+                Path.GetFullPath(target),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            ShowTransient("That bundle is already in the VM folder.", InfoBarSeverity.Informational);
+            return;
+        }
+
+        if (Directory.Exists(target))
+        {
+            ShowError($"A VM named “{Path.GetFileNameWithoutExtension(target)}” already exists.");
+            return;
+        }
+
+        try
+        {
+            await Task.Run(() => CopyDirectory(bundlePath, target));
+            await ViewModel.ReloadAsync();
+            UpdateStatus();
+            ShowTransient($"Imported “{Path.GetFileNameWithoutExtension(target)}”.");
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Import failed: {ex.Message}");
+        }
+    }
+
+    private async Task MountDroppedIsoAsync(string isoPath)
+    {
+        if (ViewModel.SelectedVm is not { } vm)
+        {
+            ShowError("Select a VM first — an .iso mounts into the selected running VM.");
+            return;
+        }
+
+        if (vm.Status is not (VmStatus.Running or VmStatus.Paused))
+        {
+            ShowError("Start the VM first — a dropped .iso mounts through the live CD tray (QMP).");
+            return;
+        }
+
+        try
+        {
+            await ViewModel.Library.MountIsoAsync(vm, isoPath);
+            ShowTransient($"Mounted {Path.GetFileName(isoPath)} into “{vm.Name}”.");
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Mount failed: {ex.Message}");
+        }
+    }
+
+    private static void CopyDirectory(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        foreach (var file in Directory.EnumerateFiles(source))
+        {
+            File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
+        }
+
+        foreach (var directory in Directory.EnumerateDirectories(source))
+        {
+            CopyDirectory(directory, Path.Combine(destination, Path.GetFileName(directory)));
+        }
+    }
+
     private async void OnVmDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if (ViewModel.SelectedVm is { CanStart: true } vm)

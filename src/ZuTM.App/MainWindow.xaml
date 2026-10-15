@@ -15,7 +15,7 @@
     xmlns:svc="using:ZuTM.App.Services"
     mc:Ignorable="d">
 
-  <Grid x:Name="RootGrid">
+  <Grid x:Name="RootGrid" AllowDrop="True" Drop="OnRootDrop" DragOver="OnRootDragOver">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
@@ -148,7 +148,9 @@
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <FontIcon Grid.Column="0" Glyph="&#xE7F4;" FontSize="24" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                <FontIcon Grid.Column="0" Glyph="&#x25CF;" FontSize="12" Margin="0,0,0,8"
+                          Foreground="{x:Bind local:Converters.StatusBrush(Status), Mode=OneWay}"
+                          ToolTipService.ToolTip="{x:Bind StatusText, Mode=OneWay}" />
                 <StackPanel Grid.Column="1" Spacing="2">
                   <TextBlock Text="{x:Bind Name, Mode=OneWay}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
                   <TextBlock Text="{x:Bind RowStatusText, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

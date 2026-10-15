@@ -1,5 +1,6 @@
 // ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
 
+using System.IO;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ZuTM.App.Services;
@@ -23,6 +24,7 @@ public sealed partial class SettingsDialog : ContentDialog
         UpdateCheckBox.IsChecked = library.Settings.CheckForUpdates;
         SelectTheme(library.Settings.Theme);
         VersionText.Text = $"ZuTM {typeof(App).Assembly.GetName().Version?.ToString(3) ?? "dev"}";
+        RefreshDownloads();
 
         PrimaryButtonClick += OnPrimaryButtonClick;
         ThemeBox.SelectionChanged += (_, _) => ApplyThemePreview(SelectedTheme());
@@ -172,4 +174,81 @@ public sealed partial class SettingsDialog : ContentDialog
         UpdateInfoBar.Message = message;
         UpdateInfoBar.IsOpen = true;
     }
+
+    // -- Downloads manager ------------------------------------------------------------
+
+    private List<DownloadedIsoRow> _downloadRows = [];
+
+    private void RefreshDownloads()
+    {
+        var folder = _library.Settings.DownloadsFolder;
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        {
+            DownloadsList.ItemsSource = null;
+            DownloadsSummaryText.Text = string.IsNullOrWhiteSpace(folder)
+                ? "No downloads folder is configured — ISOs download into each VM's bundle."
+                : "The configured folder does not exist yet — it is created on the first download.";
+            return;
+        }
+
+        var referenced = _library.VirtualMachines
+            .SelectMany(vm => vm.Bundle.State.ExternalDrivePaths.Values)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _downloadRows = Directory.EnumerateFiles(folder, "*.iso")
+            .Concat(Directory.EnumerateFiles(folder, "*.iso.part"))
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .Select(path =>
+            {
+                var usedBy = _library.VirtualMachines.Count(vm =>
+                    vm.Bundle.State.ExternalDrivePaths.Values.Contains(path, StringComparer.OrdinalIgnoreCase));
+                var isPartial = path.EndsWith(".part", StringComparison.OrdinalIgnoreCase);
+                var sizeMib = isPartial ? 0 : new FileInfo(path).Length / (1024.0 * 1024.0);
+                return new DownloadedIsoRow(
+                    Path.GetFileName(path),
+                    path,
+                    isPartial
+                        ? $"paused download — resume from the VM's detail pane"
+                        : $"{sizeMib:F0} MiB · {(usedBy == 0 ? "not used by any VM" : $"used by {usedBy} VM(s)")}",
+                    Deletable: usedBy == 0,
+                    usedBy == 0
+                        ? "Delete this file from disk"
+                        : "Detach it from the VM(s) first — deleting a referenced ISO would break their CD drives");
+            })
+            .ToList();
+
+        DownloadsList.ItemsSource = _downloadRows;
+        var total = _downloadRows.Count;
+        DownloadsSummaryText.Text = total == 0
+            ? $"No ISOs in {folder} yet."
+            : $"{total} file(s) in {folder}. Files referenced by a VM cannot be deleted here.";
+    }
+
+    private void OnDownloadsRefreshClick(object sender, RoutedEventArgs e) => RefreshDownloads();
+
+    private void OnDownloadDeleteClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not DownloadedIsoRow { Deletable: true } row)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(row.Path);
+        }
+        catch (Exception ex)
+        {
+            ShowDialogInfo($"Delete failed: {ex.Message}", InfoBarSeverity.Error);
+        }
+
+        RefreshDownloads();
+    }
 }
+
+/// <summary>One file in the downloads folder, with the VM count still referencing it.</summary>
+public sealed record DownloadedIsoRow(
+    string Name,
+    string Path,
+    string Detail,
+    bool Deletable,
+    string DeleteHint);

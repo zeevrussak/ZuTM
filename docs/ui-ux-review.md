@@ -300,14 +300,29 @@ unchanged, only the driving UI moves out of the dialog.
 
 ## Plan
 
-**Status (2026-10-15):** Phase 1 shipped in full (activity model, resumable
-downloads with pause/resume, background creation, non-modal feedback,
-empty-state CTA — unhandled-exception surfacing landed separately via the
-CrashLog/crash-dialog work). Phase 3 item 5 shipped (downloads folder
-setting, external ISO attach, clone re-reference, missing-external warning,
-destination notice) plus SettingsRow tooltips. Phase 2 item 4 shipped
-(accelerators + Delete + focused dialog entry). Remaining: Phases 2 (except
-4), 3 (except 5), 4.
+**Status (2026-10-15, second pass):** all four phases shipped. Phase 2:
+CommandBar detail actions with Pause/Resume toggle, list context menu,
+custom title bar (the WASDK `TitleBar` control is not present in WinUI
+2.3.9/WASDK 2.5.1 — the ExtendsContentIntoTitleBar+SetTitleBar pattern
+carries identity and actions instead), accelerators, search-keeps-selection,
+window placement persistence + 860×560 minimum, pane collapse with 720px
+auto-collapse (the documented NavigationView fallback — NavigationView's
+selection semantics don't fit a bound ListView without breaking E2E ids).
+Phase 3: New-VM essentials+Customize with source radio cards; config editor
+constrained combos + expanders; settings cards with live theme preview,
+folder pickers, About version, downloads manager. Phase 4: detail expanders,
+console Clear + fixed height, status color dots, .utm/.iso drag & drop,
+spacing token applied (dead `NavPaneWidth` removed). resw decision: strings
+stay hardcoded English for now; `Strings/en-US/Resources.resw` is retained
+for future localization rather than deleted (removing it risks PRI
+generation) — revisit when localization becomes a goal. Earlier 2026-10-15
+pass shipped Phase 1 in full (activity model, resumable downloads,
+background creation, non-modal feedback) plus the downloads-folder setting.
+
+**Not runtime-verified in this pass** (no interactive session): title-bar
+caption overlap, drag-drop visuals, theme preview — build-verified only;
+E2E suites (`ui-drive.ps1` updated for the new dialog shape) should be run
+in the ZUTM_E2E environment.
 
 Constraints for every phase: keep every `AutomationProperties.AutomationId`
 the E2E suites reference; all builds target win-x64 **and** win-arm64 with

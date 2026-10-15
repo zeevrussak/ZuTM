@@ -53,6 +53,16 @@ public sealed partial class SerialConsoleControl : UserControl
 
     private void OnDetachClick(object sender, RoutedEventArgs e) => Detach();
 
+    private void OnClearClick(object sender, RoutedEventArgs e)
+    {
+        Output.Text = string.Empty;
+        // The session log keeps everything; only reset how much of it we mirror.
+        if (_session is not null)
+        {
+            _shownCharacters = _session.Log.Length;
+        }
+    }
+
     private void Detach()
     {
         _timer?.Stop();
