@@ -14,7 +14,15 @@
       </ResourceDictionary.MergedDictionaries>
 
       <x:Double x:Key="NavPaneWidth">320</x:Double>
-      <Thickness x:Key="SectionHeaderMargin">0,20,0,8</Thickness>
+      <Thickness x:Key="SectionHeaderMargin">0,16,0,4</Thickness>
+
+      <Style x:Key="SettingsCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14,12" />
+      </Style>
     </ResourceDictionary>
   </Application.Resources>
 </Application>

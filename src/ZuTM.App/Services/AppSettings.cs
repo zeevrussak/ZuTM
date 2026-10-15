@@ -34,6 +34,10 @@ public sealed record AppSettings
     [JsonPropertyName("checkForUpdates")]
     public bool CheckForUpdates { get; init; } = true;
 
+    /// <summary>App theme: "system" (default), "light", or "dark".</summary>
+    [JsonPropertyName("theme")]
+    public string Theme { get; init; } = "system";
+
     [JsonPropertyName("lastUpdateCheckUtc")]
     public DateTimeOffset? LastUpdateCheckUtc { get; init; }
 

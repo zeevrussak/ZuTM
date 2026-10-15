@@ -21,9 +21,11 @@ public sealed partial class SettingsDialog : ContentDialog
         VmFolderBox.Text = library.Settings.VmFolder;
         DownloadsFolderBox.Text = library.Settings.DownloadsFolder;
         UpdateCheckBox.IsChecked = library.Settings.CheckForUpdates;
-        UpdateStatusText.Text = _updates.StatusText;
+        SelectTheme(library.Settings.Theme);
+        VersionText.Text = $"ZuTM {typeof(App).Assembly.GetName().Version?.ToString(3) ?? "dev"}";
 
         PrimaryButtonClick += OnPrimaryButtonClick;
+        ThemeBox.SelectionChanged += (_, _) => ApplyThemePreview(SelectedTheme());
         _updates.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(UpdateViewModel.StatusText))
@@ -46,6 +48,25 @@ public sealed partial class SettingsDialog : ContentDialog
         };
     }
 
+    private string SelectedTheme() => (ThemeBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "system";
+
+    private void SelectTheme(string theme)
+    {
+        for (var i = 0; i < ThemeBox.Items.Count; i++)
+        {
+            if ((ThemeBox.Items[i] as ComboBoxItem)?.Tag as string == theme)
+            {
+                ThemeBox.SelectedIndex = i;
+                return;
+            }
+        }
+
+        ThemeBox.SelectedIndex = 0;
+    }
+
+    /// <summary>Preview the theme live; the choice persists on Save.</summary>
+    private static void ApplyThemePreview(string theme) => App.MainWindow?.ApplyTheme(theme);
+
     private async void OnCheckUpdatesClick(object sender, RoutedEventArgs e) =>
         await _updates.CheckAsync();
 
@@ -55,9 +76,7 @@ public sealed partial class SettingsDialog : ContentDialog
         if (folder.Length == 0 || folder.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
         {
             args.Cancel = true;
-            UpdateInfoBar.Severity = InfoBarSeverity.Error;
-            UpdateInfoBar.Message = "Enter a valid folder path.";
-            UpdateInfoBar.IsOpen = true;
+            ShowDialogInfo("Enter a valid folder path.", InfoBarSeverity.Error);
             return;
         }
 
@@ -65,9 +84,7 @@ public sealed partial class SettingsDialog : ContentDialog
         if (downloads.Length > 0 && downloads.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
         {
             args.Cancel = true;
-            UpdateInfoBar.Severity = InfoBarSeverity.Error;
-            UpdateInfoBar.Message = "Enter a valid downloads folder path (or leave it empty).";
-            UpdateInfoBar.IsOpen = true;
+            ShowDialogInfo("Enter a valid downloads folder path (or leave it empty).", InfoBarSeverity.Error);
             return;
         }
 
@@ -76,10 +93,29 @@ public sealed partial class SettingsDialog : ContentDialog
             VmFolder = folder,
             DownloadsFolder = downloads,
             CheckForUpdates = UpdateCheckBox.IsChecked == true,
+            Theme = SelectedTheme(),
         });
     }
 
+    private async void OnBrowseVmFolderClick(object sender, RoutedEventArgs e)
+    {
+        var picked = await PickFolderAsync();
+        if (picked is not null)
+        {
+            VmFolderBox.Text = picked;
+        }
+    }
+
     private async void OnBrowseDownloadsFolderClick(object sender, RoutedEventArgs e)
+    {
+        var picked = await PickFolderAsync();
+        if (picked is not null)
+        {
+            DownloadsFolderBox.Text = picked;
+        }
+    }
+
+    private static async Task<string?> PickFolderAsync()
     {
         var picker = new Windows.Storage.Pickers.FolderPicker();
         if (App.MainWindow is { } window)
@@ -92,11 +128,10 @@ public sealed partial class SettingsDialog : ContentDialog
         picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.ComputerFolder;
         picker.FileTypeFilter.Add("*"); // FolderPicker refuses to show anything without one
         var folder = await picker.PickSingleFolderAsync();
-        if (folder is not null)
-        {
-            DownloadsFolderBox.Text = folder.Path;
-        }
+        return folder?.Path;
     }
+
+    private void OnOpenVmFolderClick(object sender, RoutedEventArgs e) => OpenFolder(VmFolderBox.Text.Trim());
 
     private void OnOpenDownloadsFolderClick(object sender, RoutedEventArgs e)
     {
@@ -108,21 +143,26 @@ public sealed partial class SettingsDialog : ContentDialog
             return;
         }
 
+        OpenFolder(path);
+    }
+
+    private void OpenFolder(string path)
+    {
         if (!Directory.Exists(path))
         {
-            ShowDialogInfo("That folder does not exist yet — it is created on first download.", InfoBarSeverity.Warning);
+            ShowDialogInfo("That folder does not exist yet — it is created on first use.", InfoBarSeverity.Warning);
             return;
         }
 
         _ = OpenFolderAsync(path);
     }
 
-    private async System.Threading.Tasks.Task OpenFolderAsync(string path)
+    private static async Task OpenFolderAsync(string path)
     {
         // WinRT folder launch: the shell opens the path, no process API involved.
         if (!await Windows.System.Launcher.LaunchFolderPathAsync(path))
         {
-            ShowDialogInfo("Windows could not open that folder.", InfoBarSeverity.Warning);
+            App.MainWindow?.ShowError("Windows could not open that folder.");
         }
     }
 

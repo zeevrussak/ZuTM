@@ -9,38 +9,88 @@
     CloseButtonText="Cancel"
     DefaultButton="Primary">
 
-  <StackPanel Spacing="12" MinWidth="460">
-    <TextBox x:Name="VmFolderBox" Header="Virtual machines folder" />
+  <ScrollViewer MaxHeight="560">
+    <StackPanel Spacing="8" MinWidth="520">
 
-    <StackPanel Spacing="4">
-      <TextBox x:Name="DownloadsFolderBox"
-               Header="Downloads folder — downloaded installer ISOs land here (empty = inside each VM's bundle)" />
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button Content="Browse…" Click="OnBrowseDownloadsFolderClick"
-                AutomationProperties.AutomationId="DownloadsFolderBrowseButton"
-                ToolTipService.ToolTip="Pick a folder on a roomy drive; the ISO stays there and VMs reference it" />
-        <Button Content="Open folder" Click="OnOpenDownloadsFolderClick"
-                AutomationProperties.AutomationId="DownloadsFolderOpenButton"
-                ToolTipService.ToolTip="Open the configured downloads folder (or the VM folder when unset)" />
-      </StackPanel>
-      <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
-                 Text="A custom folder keeps one download reusable by several VMs; bundles then reference the ISO instead of carrying it." />
+      <!-- Appearance -->
+      <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,4,0,0" />
+      <Border Style="{StaticResource SettingsCardStyle}">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Theme" Style="{StaticResource BodyTextBlockStyle}" />
+          <ComboBox x:Name="ThemeBox" SelectedIndex="0" MinWidth="200">
+            <ComboBoxItem Content="Follow Windows" Tag="system" />
+            <ComboBoxItem Content="Light" Tag="light" />
+            <ComboBoxItem Content="Dark" Tag="dark" />
+          </ComboBox>
+        </StackPanel>
+      </Border>
+
+      <!-- Storage -->
+      <TextBlock Text="Storage" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
+      <Border Style="{StaticResource SettingsCardStyle}">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Virtual machines folder" Style="{StaticResource BodyTextBlockStyle}" />
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="VmFolderBox" Grid.Column="0" />
+            <Button x:Name="VmFolderBrowseButton" Grid.Column="1" Content="Browse…" Click="OnBrowseVmFolderClick"
+                    ToolTipService.ToolTip="Pick where .utm bundles live — takes effect after Save" />
+            <Button x:Name="VmFolderOpenButton" Grid.Column="2" Content="Open folder" Click="OnOpenVmFolderClick"
+                    ToolTipService.ToolTip="Open the current VM folder" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <Border Style="{StaticResource SettingsCardStyle}">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Downloads folder" Style="{StaticResource BodyTextBlockStyle}" />
+          <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
+                     Text="Downloaded installer ISOs land here and are attached from there (one download, reusable by several VMs). Empty = inside each VM's bundle, which keeps bundles self-contained." />
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="DownloadsFolderBox" Grid.Column="0" />
+            <Button Grid.Column="1" Content="Browse…" Click="OnBrowseDownloadsFolderClick"
+                    AutomationProperties.AutomationId="DownloadsFolderBrowseButton"
+                    ToolTipService.ToolTip="Pick a folder on a roomy drive; the ISO stays there and VMs reference it" />
+            <Button Grid.Column="2" Content="Open folder" Click="OnOpenDownloadsFolderClick"
+                    AutomationProperties.AutomationId="DownloadsFolderOpenButton"
+                    ToolTipService.ToolTip="Open the configured downloads folder (or the VM folder when unset)" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- Updates -->
+      <TextBlock Text="Updates" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
+      <Border Style="{StaticResource SettingsCardStyle}">
+        <StackPanel Spacing="8">
+          <CheckBox x:Name="UpdateCheckBox" Content="Check for updates weekly (GitHub Releases)" IsChecked="True" />
+          <TextBlock x:Name="UpdateStatusText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Check now" Click="OnCheckUpdatesClick" />
+            <ProgressRing x:Name="UpdateProgress" IsActive="False" Width="20" Height="20" Visibility="Collapsed" />
+          </StackPanel>
+          <InfoBar x:Name="UpdateInfoBar" IsOpen="False" />
+        </StackPanel>
+      </Border>
+
+      <!-- About -->
+      <TextBlock Text="About" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0" />
+      <Border Style="{StaticResource SettingsCardStyle}">
+        <StackPanel Spacing="4">
+          <TextBlock x:Name="VersionText" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
+                     Text="ZuTM — virtual machines for Windows, compatible with UTM bundles.&#x0a;© 2026 Ze'ev Russak &lt;zutm@20032014.xyz&gt;.&#x0a;ZuTM Attribution License — copies must credit the author. Inspired by UTM (© osy, Apache-2.0); QEMU (GPLv2) and SPICE/virt-viewer (GPLv2+) ship as separate programs." />
+        </StackPanel>
+      </Border>
+
     </StackPanel>
-
-    <CheckBox x:Name="UpdateCheckBox" Content="Check for updates weekly (GitHub Releases)" IsChecked="True" />
-
-    <!-- Updates -->
-    <TextBlock Text="Updates" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
-    <TextBlock x:Name="UpdateStatusText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-    <StackPanel Orientation="Horizontal" Spacing="8">
-      <Button Content="Check now" Click="OnCheckUpdatesClick" />
-      <ProgressRing x:Name="UpdateProgress" IsActive="False" Width="20" Height="20" Visibility="Collapsed" />
-    </StackPanel>
-    <InfoBar x:Name="UpdateInfoBar" IsOpen="False" />
-
-    <!-- About -->
-    <TextBlock Text="About" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
-    <TextBlock Style="{StaticResource BodyTextBlockStyle}" TextWrapping="Wrap"
-               Text="ZuTM — virtual machines for Windows, compatible with UTM bundles.&#x0a;© 2026 Ze'ev Russak &lt;zutm@20032014.xyz&gt;.&#x0a;ZuTM Attribution License — copies must credit the author. Inspired by UTM (© osy, Apache-2.0); QEMU (GPLv2) and SPICE/virt-viewer (GPLv2+) ship as separate programs." />
-  </StackPanel>
+  </ScrollViewer>
 </ContentDialog>

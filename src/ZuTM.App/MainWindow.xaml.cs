@@ -76,6 +76,7 @@ public sealed partial class MainWindow : Window
             dispatcher.TryEnqueue(UpdateStatus);
         };
         VmFolderText.Text = library.Settings.VmFolder;
+        ApplyTheme(library.Settings.Theme);
         UpdateStatus();
 
         _ = ViewModel.LoadAsync();
@@ -497,11 +498,20 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Sticky, dismissible error feedback for operations that did not succeed.</summary>
-    private void ShowError(string message)
+    public void ShowError(string message)
     {
         ErrorBar.Message = message;
         ErrorBar.IsOpen = true;
     }
+
+    /// <summary>Applies the persisted theme choice ("system", "light", "dark") to the UI tree.</summary>
+    public void ApplyTheme(string theme) =>
+        RootGrid.RequestedTheme = theme switch
+        {
+            "light" => ElementTheme.Light,
+            "dark" => ElementTheme.Dark,
+            _ => ElementTheme.Default,
+        };
 
     private async void OnVmDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
