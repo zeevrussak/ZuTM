@@ -34,6 +34,8 @@ public sealed partial class MainWindow : Window
         var library = new VmLibraryService(InvokeOnUiAsync);
         ViewModel = new MainViewModel(library);
         DetailView.Library = library;
+        DetailView.Operations = new VmActivityService(library, InvokeOnUiAsync);
+        library.ActivitiesChanged += () => dispatcher.TryEnqueue(UpdateStatus);
 
         DetailView.StartRequested += async (_, vm) => await library.StartAsync(vm);
         DetailView.StopRequested += async (_, vm) => await library.StopAsync(vm);
@@ -166,9 +168,17 @@ public sealed partial class MainWindow : Window
             _allVms = [.. ViewModel.Library.VirtualMachines];
             ApplyFilterKeepSelection();
             var running = ViewModel.Library.RunningCount();
+            var active = ViewModel.Library.VirtualMachines
+                .Where(vm => vm.Activity is not null)
+                .Select(vm => vm.Activity!)
+                .ToList();
+            var activityText = active.Count == 0
+                ? string.Empty
+                : $" · {active.Count} active: {active[0].Summary}"
+                    + (active.Count > 1 ? $" (+{active.Count - 1} more)" : string.Empty);
             StatusBarText.Text = ViewModel.VirtualMachines.Count == 0
                 ? "No virtual machines yet — click “New VM” to create one."
-                : $"{ViewModel.VirtualMachines.Count} VM(s) · {running} running · folder: {ViewModel.Library.Settings.VmFolder}";
+                : $"{ViewModel.VirtualMachines.Count} VM(s) · {running} running · folder: {ViewModel.Library.Settings.VmFolder}{activityText}";
         }
         finally
         {
@@ -187,16 +197,16 @@ public sealed partial class MainWindow : Window
 
     private async Task CloneVmAsync(VmItemViewModel vm)
     {
-        try
+        // Progress, cancellation and failure surfacing live on the VM's
+        // activity; nothing here blocks in a modal.
+        var clone = await DetailView.Operations!.CloneAsync(vm);
+        if (clone is null)
         {
-            var clone = await ViewModel.Library.CloneAsync(vm);
-            UpdateStatus();
-            _ = ShowInfoAsync($"Cloned “{vm.Name}” → “{clone.Name}”.");
+            return;
         }
-        catch (Exception ex)
-        {
-            await ShowInfoAsync($"Clone failed: {ex.Message}");
-        }
+
+        UpdateStatus();
+        _ = ShowInfoAsync($"Cloned “{vm.Name}” → “{clone.Name}”.");
     }
 
     private async Task DeleteVmAsync(VmItemViewModel vm)
@@ -264,8 +274,19 @@ public sealed partial class MainWindow : Window
         try
         {
             // savevm pauses internally; surface the frozen state while it runs.
-            await qmp.SaveSnapshotAsync(name);
-            await ShowInfoAsync($"Snapshot “{name}” saved.");
+            // No progress events exist and the write cannot be interrupted —
+            // the activity says so honestly (no cancel button).
+            vm.Activity = new VmActivity(
+                VmActivityKind.SavingSnapshot, $"Saving snapshot “{name}”", canPause: false, canCancel: false);
+            try
+            {
+                await qmp.SaveSnapshotAsync(name);
+                _ = ShowInfoAsync($"Snapshot “{name}” saved.");
+            }
+            finally
+            {
+                vm.Activity = null;
+            }
         }
         catch (Exception ex)
         {
@@ -315,10 +336,19 @@ public sealed partial class MainWindow : Window
         try
         {
             // loadvm requires the guest stopped: freeze → load → continue.
-            await qmp.PauseAsync();
-            await qmp.LoadSnapshotAsync(snapshot);
-            await qmp.ResumeAsync();
-            await ShowInfoAsync($"Snapshot “{snapshot}” restored.");
+            vm.Activity = new VmActivity(
+                VmActivityKind.RestoringSnapshot, $"Restoring snapshot “{snapshot}”", canPause: false, canCancel: false);
+            try
+            {
+                await qmp.PauseAsync();
+                await qmp.LoadSnapshotAsync(snapshot);
+                await qmp.ResumeAsync();
+                _ = ShowInfoAsync($"Snapshot “{snapshot}” restored.");
+            }
+            finally
+            {
+                vm.Activity = null;
+            }
         }
         catch (Exception ex)
         {
@@ -355,8 +385,16 @@ public sealed partial class MainWindow : Window
         var result = await dialog.ShowAsync();
         if (result == ContentDialogResult.Primary && dialog.CreatedVm is not null)
         {
-            await ViewModel.ReloadAsync();
+            // CreateAsync already added the VM to the library — a reload here
+            // would replace the wrapper carrying the new activity.
             ViewModel.SelectedVm = ViewModel.VirtualMachines.FirstOrDefault(v => v.Id == dialog.CreatedVm.Id);
+            if (dialog.CreationPlan is { } plan)
+            {
+                // Slow work (ISO fetch/import, disk create) runs on the row,
+                // not behind this dialog.
+                _ = DetailView.Operations!.RunCreationAsync(dialog.CreatedVm, plan);
+            }
+
             UpdateStatus();
         }
     }

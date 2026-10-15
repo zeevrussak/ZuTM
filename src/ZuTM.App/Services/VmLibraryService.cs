@@ -2,6 +2,7 @@
 
 using System.Collections.ObjectModel;
 using ZuTM.App.Mvvm;
+using ZuTM.App.ViewModels;
 using ZuTM.Core.Qemu;
 using ZuTM.Core.Utm;
 using ZuTM.Spice;
@@ -92,24 +93,87 @@ public sealed class VmItemViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _status, value))
             {
                 OnPropertyChanged(nameof(StatusText));
-                OnPropertyChanged(nameof(CanStart));
-                OnPropertyChanged(nameof(CanStop));
-                OnPropertyChanged(nameof(CanPause));
-                OnPropertyChanged(nameof(CanResume));
-                OnPropertyChanged(nameof(CanReset));
-                OnPropertyChanged(nameof(CanClone));
-                OnPropertyChanged(nameof(CanDelete));
+                RaiseCommandFlags();
             }
         }
     }
 
-    public bool CanStart => Status is VmStatus.Stopped;
+    private void RaiseCommandFlags()
+    {
+        OnPropertyChanged(nameof(CanStart));
+        OnPropertyChanged(nameof(CanStop));
+        OnPropertyChanged(nameof(CanPause));
+        OnPropertyChanged(nameof(CanResume));
+        OnPropertyChanged(nameof(CanReset));
+        OnPropertyChanged(nameof(CanClone));
+        OnPropertyChanged(nameof(CanDelete));
+    }
+
+    private VmActivity? _activity;
+
+    /// <summary>
+    /// The long-running operation this VM is busy with (download, import,
+    /// disk create, clone, snapshot), or null. Gate every bundle-mutating
+    /// command on it: a VM without its drives must not start, and a bundle
+    /// mid-copy must not be deleted.
+    /// </summary>
+    public VmActivity? Activity
+    {
+        get => _activity;
+        internal set
+        {
+            if (_activity is { } previous)
+            {
+                previous.PropertyChanged -= OnActivityPropertyChanged;
+            }
+
+            if (SetProperty(ref _activity, value))
+            {
+                if (value is { } current)
+                {
+                    current.PropertyChanged += OnActivityPropertyChanged;
+                }
+
+                OnPropertyChanged(nameof(HasActivity));
+                RaiseCommandFlags();
+                _owner.RaiseActivitiesChanged();
+            }
+        }
+    }
+
+    public bool HasActivity => Activity is not null;
+
+    /// <summary>Row caption: the activity (with its progress) wins over the plain run-state text.</summary>
+    public string RowStatusText => Activity is { } activity ? activity.Summary : StatusText;
+
+    public double ActivityPercent => Activity?.Percent ?? 0;
+
+    public bool ActivityIsIndeterminate => Activity?.Percent is null;
+
+    private void OnActivityPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(VmActivity.Percent) or nameof(VmActivity.Summary))
+        {
+            OnPropertyChanged(nameof(RowStatusText));
+            OnPropertyChanged(nameof(ActivityPercent));
+            OnPropertyChanged(nameof(ActivityIsIndeterminate));
+        }
+    }
+
+    /// <summary>
+    /// Re-evaluates detail bindings that reach through the bundle (drives
+    /// attach only after their download/import lands, so the path changes
+    /// under an unchanged Vm reference).
+    /// </summary>
+    internal void RaiseConfigurationChanged() => OnPropertyChanged(nameof(Bundle));
+
+    public bool CanStart => Status is VmStatus.Stopped && !HasActivity;
     public bool CanStop => Status is VmStatus.Running or VmStatus.Paused;
     public bool CanPause => Status is VmStatus.Running;
     public bool CanResume => Status is VmStatus.Paused;
     public bool CanReset => Status is VmStatus.Running or VmStatus.Paused;
-    public bool CanClone => Status is VmStatus.Stopped;
-    public bool CanDelete => Status is VmStatus.Stopped;
+    public bool CanClone => Status is VmStatus.Stopped && !HasActivity;
+    public bool CanDelete => Status is VmStatus.Stopped && !HasActivity;
 
     internal async Task SetProcessAsync(QemuVmProcess process, QemuPortSet? ports = null)
     {
@@ -177,6 +241,11 @@ public sealed class VmItemViewModel : ObservableObject, IDisposable
 public sealed class VmLibraryService : IDisposable
 {
     private readonly Func<Func<Task>, Task> _uiDispatcher;
+
+    /// <summary>Raised whenever any VM gains, loses, or progresses an activity (UI thread).</summary>
+    public event Action? ActivitiesChanged;
+
+    internal void RaiseActivitiesChanged() => ActivitiesChanged?.Invoke();
 
     public AppSettings Settings { get; private set; }
 
@@ -423,6 +492,20 @@ public sealed class VmLibraryService : IDisposable
         }
 
         new DiskImageCreator(QemuRuntime).Create(spec);
+    }
+
+    /// <summary>
+    /// Async disk creation for background activities: cancellation kills
+    /// qemu-img and removes the partial image.
+    /// </summary>
+    public Task CreateDiskImageAsync(DiskImageSpec spec, CancellationToken cancellationToken = default)
+    {
+        if (QemuRuntime is null)
+        {
+            throw new FileNotFoundException("qemu-img.exe not found: no QEMU runtime is available.");
+        }
+
+        return new DiskImageCreator(QemuRuntime).CreateAsync(spec, cancellationToken);
     }
 
     // -- Removable media & USB routing (live control over QMP) --------------------

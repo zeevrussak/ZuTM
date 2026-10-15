@@ -21,6 +21,9 @@ public sealed partial class VmDetailView : UserControl
     /// <summary>Library facade for live QMP operations; MainWindow injects it.</summary>
     public VmLibraryService? Library { get; set; }
 
+    /// <summary>Long-running operation control (pause/resume/cancel/retry); MainWindow injects it.</summary>
+    public VmActivityService? Operations { get; set; }
+
     public VmItemViewModel? Vm
     {
         get => (VmItemViewModel?)GetValue(VmProperty);
@@ -108,6 +111,19 @@ public sealed partial class VmDetailView : UserControl
                 _ = RefreshLiveRowsAsync();
             }
         }
+        else if (e.PropertyName == nameof(VmItemViewModel.Bundle))
+        {
+            // A deferred drive attach (download/import/disk create) landed —
+            // re-read the static rows from the updated configuration.
+            if (_dispatcherQueue is { } dispatcher)
+            {
+                dispatcher.TryEnqueue(PopulateStaticRows);
+            }
+            else
+            {
+                PopulateStaticRows();
+            }
+        }
     }
 
     private void Rebuild()
@@ -117,18 +133,31 @@ public sealed partial class VmDetailView : UserControl
         DriveRows.Clear();
         Terminal.Endpoint = Vm?.SerialPort ?? 0;
 
+        PopulateStaticRows();
+        RefreshAccelerationNotice();
+        _ = RefreshLiveRowsAsync();
+    }
+
+    /// <summary>Fills the drive and network rows from the bundle configuration.</summary>
+    private void PopulateStaticRows()
+    {
+        NetworkRows.Clear();
+        DriveRows.Clear();
+
         if (Vm is not { } vm)
         {
-            RefreshAccelerationNotice();
             Bindings.Update();
             return;
         }
 
         foreach (var drive in vm.Bundle.Configuration.Drives)
         {
+            var externalMissing = drive.IsExternal && vm.Bundle.ResolveDriveImagePath(drive) is null;
             DriveRows.Add(new DetailRow(
                 DriveLabel(drive),
-                drive.IsExternal ? "External image" : drive.ImageName ?? "—"));
+                externalMissing
+                    ? "External image — file not found"
+                    : drive.IsExternal ? "External image" : drive.ImageName ?? "—"));
         }
 
         for (var i = 0; i < vm.Bundle.Configuration.Networks.Count; i++)
@@ -149,9 +178,7 @@ public sealed partial class VmDetailView : UserControl
             NetworkRows.Add(new DetailRow("No adapters", "—"));
         }
 
-        RefreshAccelerationNotice();
         Bindings.Update();
-        _ = RefreshLiveRowsAsync();
     }
 
     private bool _accelerationNoticeDismissed;
@@ -361,6 +388,40 @@ public sealed partial class VmDetailView : UserControl
     }
 
     private void OnUsbRefreshClick(object sender, RoutedEventArgs e) => _ = RefreshLiveRowsAsync();
+
+    // -- Activity strip (pause / resume / cancel / retry) ---------------------------
+
+    private void OnActivityPauseClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is { } vm)
+        {
+            Operations?.PauseDownload(vm);
+        }
+    }
+
+    private void OnActivityResumeClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is { } vm && Operations is { } operations)
+        {
+            _ = operations.ResumeDownloadAsync(vm);
+        }
+    }
+
+    private void OnActivityCancelClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is { } vm && Operations is { } operations)
+        {
+            _ = operations.CancelAsync(vm);
+        }
+    }
+
+    private void OnActivityRetryClick(object sender, RoutedEventArgs e)
+    {
+        if (Vm is { } vm && Operations is { } operations)
+        {
+            _ = operations.RetryCreationAsync(vm);
+        }
+    }
 
     private async void OnUsbAttach(object sender, RoutedEventArgs e)
     {

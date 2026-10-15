@@ -50,6 +50,47 @@
         </InfoBar.ActionButton>
       </InfoBar>
 
+      <!-- Live activity: what this VM is busy with, with pause/resume/cancel/retry -->
+      <Border
+          Padding="12,10" CornerRadius="4" Margin="0,0,0,8"
+          Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+          Visibility="{x:Bind local:Converters.ToVisibility(Vm.HasActivity), Mode=OneWay}">
+        <Grid ColumnSpacing="12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <ProgressRing Grid.Column="0" Width="20" Height="20" IsActive="True"
+                        Visibility="{x:Bind local:Converters.ToVisibility(Vm.Activity.IsIndeterminate), Mode=OneWay}" />
+          <ProgressBar Grid.Column="1" Width="160" VerticalAlignment="Center" Minimum="0" Maximum="100"
+                       Visibility="{x:Bind local:Converters.ToCollapsed(Vm.Activity.IsIndeterminate), Mode=OneWay}"
+                       Value="{x:Bind Vm.ActivityPercent, Mode=OneWay}" />
+          <TextBlock Grid.Column="2" VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="{x:Bind Vm.Activity.Summary, Mode=OneWay}" />
+          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <Button Content="Pause" Click="OnActivityPauseClick"
+                    AutomationProperties.AutomationId="ActivityPauseButton"
+                    ToolTipService.ToolTip="Pause the download; progress already made is kept"
+                    Visibility="{x:Bind local:Converters.ToVisibility(Vm.Activity.ShowPause), Mode=OneWay}" />
+            <Button Content="Resume" Click="OnActivityResumeClick"
+                    AutomationProperties.AutomationId="ActivityResumeButton"
+                    ToolTipService.ToolTip="Continue the download from where it stopped"
+                    Visibility="{x:Bind local:Converters.ToVisibility(Vm.Activity.ShowResume), Mode=OneWay}" />
+            <Button Content="Cancel" Click="OnActivityCancelClick"
+                    AutomationProperties.AutomationId="ActivityCancelButton"
+                    ToolTipService.ToolTip="Cancel this operation; partial results are cleaned up"
+                    Visibility="{x:Bind local:Converters.ToVisibility(Vm.Activity.ShowCancel), Mode=OneWay}" />
+            <Button Content="Retry" Style="{StaticResource AccentButtonStyle}" Click="OnActivityRetryClick"
+                    AutomationProperties.AutomationId="ActivityRetryButton"
+                    ToolTipService.ToolTip="Run the remaining setup steps again"
+                    Visibility="{x:Bind local:Converters.ToVisibility(Vm.Activity.ShowRetry), Mode=OneWay}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
       <TextBlock Text="System" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,16,0,4" />
       <local:SettingsRow Label="Architecture" Value="{x:Bind Vm.Architecture, Mode=OneWay}" />
       <local:SettingsRow Label="Machine" Value="{x:Bind Vm.Bundle.Configuration.System.Target, Mode=OneWay}" />

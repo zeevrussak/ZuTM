@@ -17,6 +17,15 @@ public sealed record AppSettings
     [JsonPropertyName("vmFolder")]
     public string VmFolder { get; init; } = DefaultVmFolder();
 
+    /// <summary>
+    /// Where downloaded installer ISOs land. Empty means inside each VM's
+    /// bundle (self-contained, portable). A custom folder keeps the ISO as an
+    /// external drive reference — one download, reusable across VMs — at the
+    /// cost of the bundle not carrying its installer.
+    /// </summary>
+    [JsonPropertyName("downloadsFolder")]
+    public string DownloadsFolder { get; init; } = "";
+
     /// <summary>Repository checked for online updates.</summary>
     [JsonPropertyName("updateRepository")]
     public string UpdateRepository { get; init; } = "zeevrussak/ZuTM";

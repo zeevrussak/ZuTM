@@ -19,6 +19,9 @@ public sealed partial class NewVmDialog : ContentDialog
 
     public VmItemViewModel? CreatedVm { get; private set; }
 
+    /// <summary>Slow work (ISO fetch/import, disk create) for VmActivityService to run after this dialog closes.</summary>
+    public VmCreationPlan? CreationPlan { get; private set; }
+
     public NewVmDialog(VmLibraryService library)
     {
         _library = library;
@@ -117,6 +120,7 @@ public sealed partial class NewVmDialog : ContentDialog
         {
             IsoBox.Text = file.Path;
             ClearIsoButton.IsEnabled = true;
+            UpdateDestinationNotice();
         }
     }
 
@@ -124,6 +128,24 @@ public sealed partial class NewVmDialog : ContentDialog
     {
         IsoBox.Text = string.Empty;
         ClearIsoButton.IsEnabled = false;
+        UpdateDestinationNotice();
+    }
+
+    /// <summary>Tells the user where a chosen installer ISO will land before committing to Create.</summary>
+    private void UpdateDestinationNotice()
+    {
+        var hasSource = IsoBox.Text.Trim().Length > 0 || IsoUrlBox.Text.Trim().Length > 0;
+        if (!hasSource)
+        {
+            IsoDestinationText.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var folder = _library.Settings.DownloadsFolder;
+        IsoDestinationText.Text = string.IsNullOrWhiteSpace(folder)
+            ? "The ISO downloads into this VM's bundle when you click Create."
+            : $"The ISO downloads to {folder} and is attached from there — change it in Settings ▸ Downloads folder.";
+        IsoDestinationText.Visibility = Visibility.Visible;
     }
 
     // -- Streaming installer ISOs ---------------------------------------------------
@@ -185,6 +207,7 @@ public sealed partial class NewVmDialog : ContentDialog
 
             _lastResolvedUrl = url;
             IsoUrlBox.Text = url;
+            UpdateDestinationNotice();
             StreamStatusText.Text =
                 $"Resolved {url[(url.LastIndexOf('/') + 1)..]} from {new Uri(url).Host} — it downloads into the VM when you click Create.";
         }
@@ -227,6 +250,7 @@ public sealed partial class NewVmDialog : ContentDialog
         }
 
         StreamStatusText.Text = string.Empty;
+        UpdateDestinationNotice();
     }
 
     private async void OnPrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
@@ -309,7 +333,7 @@ public sealed partial class NewVmDialog : ContentDialog
                 },
                 Displays =
                 [
-                    new UtmDisplay { Hardware = isX86 ? "virtio-gpu-pci" : "virtio-gpu-pci" },
+                    new UtmDisplay { Hardware = "virtio-gpu-pci" },
                 ],
                 Networks =
                 [
@@ -325,73 +349,6 @@ public sealed partial class NewVmDialog : ContentDialog
 
             var vm = await _library.CreateAsync(configuration);
 
-            // Drive list order is the boot order: the installer ISO goes first,
-            // so a blank-disk VM boots from the ISO until it is ejected.
-            var drives = new List<UtmDrive>();
-            if (isoUrl.Length > 0)
-            {
-                // Official-distribution ISO: resolve happened above; the ISO
-                // downloads into the bundle now (QEMU on Windows cannot stream
-                // network images at run time). QEMU's curl driver limitation
-                // is why this is a download, not a streamed CD backend.
-                var lastReportedPercent = -1.0;
-                var progress = new Progress<RemoteIsoDownloadProgress>(p =>
-                {
-                    // Progress<T> can coalesce; report at most every whole percent.
-                    var percent = Math.Floor(p.Percent ?? 0);
-                    if (percent <= lastReportedPercent && p.Percent is not null)
-                    {
-                        return;
-                    }
-
-                    lastReportedPercent = percent;
-                    StreamStatusText.Text = p.Percent is { } value
-                        ? $"Downloading {RemoteImage.SuggestedFileName(isoUrl)}… {value:F1}%"
-                        : $"Downloading {RemoteImage.SuggestedFileName(isoUrl)}… {p.BytesReceived / (1024.0 * 1024.0):F1} MiB";
-                });
-                drives.Add(await vm.Bundle.ImportRemoteIsoAsync(
-                    isoUrl, isX86 ? UtmValues.DriveInterface.Ide : UtmValues.DriveInterface.Virtio, progress));
-                StreamStatusText.Text = $"Downloaded {RemoteImage.SuggestedFileName(isoUrl)} into the VM.";
-            }
-            else if (isoPath.Length > 0)
-            {
-                var cd = await Task.Run(() => vm.Bundle.ImportDriveImage(isoPath));
-                drives.Add(cd with
-                {
-                    ImageType = UtmValues.DriveImageType.Cd,
-                    Interface = isX86 ? UtmValues.DriveInterface.Ide : UtmValues.DriveInterface.Virtio,
-                    IsReadOnly = true,
-                });
-            }
-
-            if (diskGib > 0)
-            {
-                var format = SelectedFormat();
-                var diskName = $"{name.ToLowerInvariant().Replace(' ', '-')}-0{format.FileExtension()}";
-                var diskPath = Path.Combine(vm.Bundle.DataDirectory, Sanitize(diskName));
-                var spec = new DiskImageSpec
-                {
-                    Path = diskPath,
-                    SizeBytes = diskGib * 1024L * 1024L * 1024L,
-                    Format = format,
-                    Allocation = SelectedAllocation(),
-                };
-                await Task.Run(() => _library.CreateDiskImage(spec));
-
-                drives.Add(new UtmDrive
-                {
-                    ImageName = Path.GetFileName(diskPath),
-                    ImageType = UtmValues.DriveImageType.Disk,
-                    Interface = UtmValues.DriveInterface.Virtio,
-                });
-            }
-
-            if (drives.Count > 0)
-            {
-                vm.Bundle.Configuration = vm.Bundle.Configuration with { Drives = [.. drives] };
-                await Task.Run(() => vm.Bundle.Save());
-            }
-
             if (_routedUsbDevices.Count > 0)
             {
                 vm.Bundle.State = vm.Bundle.State with
@@ -405,6 +362,27 @@ public sealed partial class NewVmDialog : ContentDialog
                 };
                 await Task.Run(() => vm.Bundle.Save());
             }
+
+            // Everything slow happens after the dialog closes: the service
+            // fetches/copies the ISO and creates the disk with live progress,
+            // pause/resume and cancel on the VM's row and detail pane.
+            var format = SelectedFormat();
+            var diskName = diskGib > 0
+                ? Sanitize($"{name.ToLowerInvariant().Replace(' ', '-')}-0{format.FileExtension()}")
+                : null;
+            CreationPlan = new VmCreationPlan(
+                IsoUrl: isoUrl.Length > 0 ? isoUrl : null,
+                LocalIsoPath: isoPath.Length > 0 ? isoPath : null,
+                DriveInterface: isX86 ? UtmValues.DriveInterface.Ide : UtmValues.DriveInterface.Virtio,
+                Disk: diskName is null
+                    ? null
+                    : new DiskImageSpec
+                    {
+                        Path = Path.Combine(vm.Bundle.DataDirectory, diskName),
+                        SizeBytes = diskGib * 1024L * 1024L * 1024L,
+                        Format = format,
+                        Allocation = SelectedAllocation(),
+                    });
 
             CreatedVm = vm;
         }

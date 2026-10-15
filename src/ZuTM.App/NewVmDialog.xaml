@@ -103,6 +103,10 @@
                PlaceholderText="https://releases.ubuntu.com/…/ubuntu-…-desktop-amd64.iso"
                TextChanged="OnIsoUrlTextChanged" />
 
+      <TextBlock x:Name="IsoDestinationText" Style="{StaticResource CaptionTextBlockStyle}"
+                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
+                 Visibility="Collapsed" />
+
       <StackPanel Orientation="Horizontal" Spacing="8">
         <ProgressRing x:Name="ResolveProgress" IsActive="False" Width="16" Height="16" />
         <TextBlock x:Name="StreamStatusText" VerticalAlignment="Center"
