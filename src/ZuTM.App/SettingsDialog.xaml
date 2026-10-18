@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License. -->
+<!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0. -->
 <ContentDialog
     x:Class="ZuTM.App.SettingsDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -127,7 +127,7 @@
         <StackPanel Spacing="4">
           <TextBlock x:Name="VersionText" Style="{StaticResource BodyStrongTextBlockStyle}" />
           <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
-                     Text="ZuTM — virtual machines for Windows, compatible with UTM bundles.&#x0a;© 2026 Ze'ev Russak &lt;zutm@20032014.xyz&gt;.&#x0a;ZuTM Attribution License — copies must credit the author. Inspired by UTM (© osy, Apache-2.0); QEMU (GPLv2) and SPICE/virt-viewer (GPLv2+) ship as separate programs." />
+                     Text="ZuTM — virtual machines for Windows, compatible with UTM bundles.&#x0a;© 2026 Ze'ev Russak &lt;zutm@20032014.xyz&gt;.&#x0a;Apache License 2.0 — copyright and NOTICE attributions preserved. Inspired by UTM (© osy, Apache-2.0); QEMU (GPLv2) and SPICE/virt-viewer (GPLv2+) ship as separate programs." />
         </StackPanel>
       </Border>
 

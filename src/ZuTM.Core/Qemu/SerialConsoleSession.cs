@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Expect-style driver for a VM serial console exposed over TCP (the
 // -serial tcp:… endpoints QemuCommandLineBuilder creates).
 

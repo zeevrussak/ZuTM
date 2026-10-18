@@ -1,4 +1,4 @@
-# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 #
 # Installer E2E: a real msiexec round trip against a built MSI —
 #   1. silent install at the default location (the exact flow a double-click

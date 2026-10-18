@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License -->
+  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0 -->
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>

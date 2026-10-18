@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+  ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
   MSI package: per-machine install, major upgrades in place, clean uninstall.
   Built per-architecture by scripts/build-installer.ps1:
     ZuTM-x64.msi / ZuTM-arm64.msi   (asset names matched by the update client)

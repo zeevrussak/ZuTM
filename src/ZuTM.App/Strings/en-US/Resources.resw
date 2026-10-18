@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License -->
+  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0 -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:element name="root" msdata:IsDataSet="true">
       <xsd:complexType>
@@ -29,5 +29,5 @@
   <data name="SettingsButton" xml:space="preserve"><value>Settings</value></data>
   <data name="RefreshButton" xml:space="preserve"><value>Refresh</value></data>
   <data name="SearchBoxPlaceholder" xml:space="preserve"><value>Search virtual machines</value></data>
-  <data name="AboutCredit" xml:space="preserve"><value>ZuTM © 2026 Ze'ev Russak &lt;zutm@20032014.xyz&gt; — ZuTM Attribution License: copies must credit the author.</value></data>
+  <data name="AboutCredit" xml:space="preserve"><value>ZuTM © 2026 Ze'ev Russak &lt;zutm@20032014.xyz&gt; — Apache License 2.0; copyright and NOTICE attributions preserved.</value></data>
 </root>

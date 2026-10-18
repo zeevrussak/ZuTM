@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+  ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
   UTM-style layout: left VM list, right detail pane; native WinUI 3 Fluent look
   (Mica backdrop, system accent, light/dark follows Windows).
 -->

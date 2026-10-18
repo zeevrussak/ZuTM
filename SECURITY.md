@@ -1,6 +1,6 @@
 # Security Policy — ZuTM
 
-**ZuTM © 2026 Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.**
+**ZuTM © 2026 Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.**
 
 ## Reporting
 

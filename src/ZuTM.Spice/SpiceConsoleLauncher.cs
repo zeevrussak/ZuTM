@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // SPICE display integration. ZuTM embeds the SPICE server in QEMU (see
 // QemuCommandLineBuilder) and hosts remote-viewer (virt-viewer) as the
 // console client — the same client tooling UTM builds against.

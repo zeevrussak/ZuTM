@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 //
 // E2E for the `zutm` CLI: the same launch path (VmLauncher + RuntimeRegistry)
 // the GUI uses, driven from a second process — create/list/show/clone/delete,

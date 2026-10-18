@@ -4,14 +4,14 @@
   <PropertyGroup>
     <Authors>Ze'ev Russak</Authors>
     <Company>Ze'ev Russak</Company>
-    <Copyright>© 2026 Ze'ev Russak — ZuTM Attribution License</Copyright>
+    <Copyright>© 2026 Ze'ev Russak — Apache License 2.0</Copyright>
     <Product>ZuTM</Product>
     <VersionPrefix>0.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <RepositoryUrl>https://github.com/zeevrussak/ZuTM</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/zeevrussak/ZuTM</PackageProjectUrl>
-    <PackageLicenseFile>LICENSE.TXT</PackageLicenseFile>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <NeutralLanguage>en-US</NeutralLanguage>
 
@@ -32,9 +32,10 @@
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
-  <!-- Ensure LICENSE/README travel with any packed nupkg -->
+  <!-- Ensure LICENSE/NOTICE/README travel with any packed nupkg -->
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
     <None Include="$(MSBuildThisFileDirectory)LICENSE.TXT" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)NOTICE" Pack="true" PackagePath="\" />
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Single start path shared by the GUI and the `zutm` CLI: build the plan,
 // seed UEFI vars, launch QEMU, connect QMP, record the runtime registry.
 

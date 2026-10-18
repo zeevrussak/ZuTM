@@ -10,8 +10,9 @@ accelerated, and **file-compatible with UTM**: VMs created in one can be
 opened in the other.
 
 > **ZuTM © 2026 Ze'ev Russak &lt;zutm@20032014.xyz&gt;**
-> If you copy or base work on ZuTM, you must give credit to the author.
-> See [LICENSE.TXT](LICENSE.TXT) and [AGENTS.md](AGENTS.md).
+> Apache License 2.0 — copy, modify, and redistribute freely; preserve the
+> copyright and [NOTICE](NOTICE) attributions. See [LICENSE.TXT](LICENSE.TXT)
+> and [AGENTS.md](AGENTS.md).
 
 ## Features
 
@@ -88,7 +89,7 @@ scripts/fetch-qemu.ps1                    # download QEMU runtime (optional)
 ## Credits
 
 - **ZuTM** — © 2026 [Ze'ev Russak](mailto:zutm@20032014.xyz), released
-  under the ZuTM Attribution License.
+  under the Apache License 2.0.
 - **[UTM](https://github.com/utmapp/UTM)** — © osy, Apache-2.0. ZuTM is
   inspired by UTM's design and interoperates with its file format; no UTM
   source code is contained in this repository.

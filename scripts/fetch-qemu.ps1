@@ -1,4 +1,4 @@
-# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 #
 # Downloads the QEMU runtime for Windows into runtimes\qemu, native to the
 # host architecture, which ZuTM discovers at runtime and the MSI bundles.

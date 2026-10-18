@@ -1,6 +1,6 @@
 # ZuTM Architecture
 
-**ZuTM © 2026 Ze'ev Russak <zutm@20032014.xyz>** — ZuTM Attribution License
+**ZuTM © 2026 Ze'ev Russak <zutm@20032014.xyz>** — Apache License 2.0
 (copies and derived works must credit the author; see LICENSE.TXT / AGENTS.md).
 
 ## 1. What ZuTM is

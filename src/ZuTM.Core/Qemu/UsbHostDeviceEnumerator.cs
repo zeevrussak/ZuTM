@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Host-side USB device discovery for passthrough routing (VM viewer, VM
 // settings, New VM dialog). Enumeration is read-only SetupAPI/CfgMgr32 —
 // no driver is installed or changed; QEMU claims the device via libusb.

@@ -1,4 +1,4 @@
-# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 #
 # Downloads and SHA-256-verifies the Alpine "virt" ISO used by the E2E VM
 # suites into testimages\. Idempotent.

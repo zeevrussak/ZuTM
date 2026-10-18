@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Clean-room model of the UTM v4 QEMU configuration sections.
 // Every section preserves keys it does not understand via UnknownKeys.
 

@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Runtime device control over QMP: CD-ROM medium swapping (mount/eject ISOs)
 // and USB host-device passthrough (device_add/device_del usb-host).
 // All node/device ids use the zutm- prefix so ZuTM never touches devices it

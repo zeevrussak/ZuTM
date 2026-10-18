@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Clean-room implementation of the Apple property list model used by the
 // UTM bundle format. No code derived from UTM or Apple sources.
 

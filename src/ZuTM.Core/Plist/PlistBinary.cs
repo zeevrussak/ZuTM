@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Clean-room implementation of the "bplist00" binary property list format
 // (public binary plist specification, 2008). No code derived from UTM or
 // Apple sources.

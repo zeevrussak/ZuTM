@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 //
 // End-to-end: boot the prepared Alpine headless image through ZuTM's own
 // QEMU pipeline and communicate with the guest over its serial console —

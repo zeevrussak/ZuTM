@@ -1,6 +1,6 @@
 <Project Sdk="WixToolset.Sdk/6.0.2">
 
-  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+  <!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
        Requires -p:PublishDir to point at the dotnet publish output (see
        scripts/build-installer.ps1). Heat harvests that folder into the
        HarvestedComponents group inside INSTALLFOLDER. -->

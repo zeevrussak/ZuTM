@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 //
 // End-to-end: boot the Alpine XFCE image (SPICE guest tools installed),
 // verify the SPICE server, GET the UI by capturing the desktop from inside

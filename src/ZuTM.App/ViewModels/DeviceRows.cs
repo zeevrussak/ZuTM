@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Rows for the live device sections (VM viewer) and the USB routing pickers
 // (settings + creation dialogs). Plain get-only properties — x:Bind targets.
 

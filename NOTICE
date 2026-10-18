@@ -1,9 +1,13 @@
 NOTICE — ZuTM
 =========
 
-ZuTM
+ZuTM — virtual machines for Windows, compatible with UTM bundles
 Copyright (c) 2026 Ze'ev Russak <zutm@20032014.xyz>
-Licensed under the ZuTM Attribution License (see LICENSE.TXT).
+https://github.com/zeevrussak/ZuTM
+
+Licensed under the Apache License, Version 2.0 (see LICENSE.TXT). The
+attribution notices in this file must be preserved in source and binary
+redistributions of ZuTM and derivative works (Apache-2.0, Section 4).
 
 This product includes and/or interoperates with the following third-party
 components, each governed by its own license:

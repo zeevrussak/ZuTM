@@ -1,4 +1,4 @@
-# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 #
 # UIA driver for ZuTM: launches the app and walks the New-VM dialog via UI
 # Automation (same in-process ordering as human input, so ContentDialog

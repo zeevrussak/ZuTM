@@ -1,4 +1,4 @@
-# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 # PPM(P6) -> PNG converter using only the stdlib (zlib + struct). E2E diagnostics.
 import struct, sys, zlib
 

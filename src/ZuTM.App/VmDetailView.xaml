@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License. -->
+<!-- ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0. -->
 <UserControl
     x:Class="ZuTM.App.VmDetailView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- ZuTM logo (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+  <!-- ZuTM logo (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
        Master vector. Raster derivatives: scripts/make-icon.ps1 (ICO) and
        scripts/make-logo-art.ps1 (PNG/social preview) render from this file. -->
   <defs>

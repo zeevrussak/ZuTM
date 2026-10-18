@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 //
 // End-to-end for the creation flow the New-VM dialog drives when the user
 // picks a distribution from the online catalog: resolve the official ISO URL

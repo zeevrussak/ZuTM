@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 //
 // Builds the E2E testing environment by driving real virtual machines over
 // their serial consoles — the same QEMU/serial/QMP plumbing ZuTM.App uses.

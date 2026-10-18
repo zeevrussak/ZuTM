@@ -1,6 +1,6 @@
 # Work Report — 2026-09-19: Security Pass, Feature Completion, Test Expansion
 
-**ZuTM © 2026 Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.**
+**ZuTM © 2026 Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.**
 
 Scope of this pass: security audit + fixes, completion of partial SDR items,
 new tests for previously untested features, full unit + E2E validation with

@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Lossless config editor: every field maps onto `with` transforms of the
 // UTM model — unknown keys ride along untouched (FR-08/60).
 // USB routing persists in zutm-state.json (ZuTM-private), not config.plist.

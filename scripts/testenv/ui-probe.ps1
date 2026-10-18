@@ -1,4 +1,4 @@
-# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 # Boots the XFCE test image, opens a terminal via Ctrl+Alt+T, types a marker
 # command, and captures two screendumps for visual diagnosis.
 param(

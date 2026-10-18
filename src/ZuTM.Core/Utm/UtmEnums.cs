@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Clean-room model of the UTM configuration format (ConfigurationVersion 4).
 // All enum-like fields are stored as raw strings so values ZuTM does not know
 // round-trip losslessly to UTM. See docs/utm-compatibility.md.

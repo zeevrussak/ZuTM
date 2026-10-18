@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // Maps a UTM QEMU configuration onto a QEMU command line for Windows hosts
 // (WHPX/TCG acceleration, TCP-based SPICE/QMP/serial endpoints instead of
 // Unix sockets, DirectX Sound audio). Mirrors UTM's semantics where the

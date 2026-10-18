@@ -1,4 +1,4 @@
-// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+// ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 // In-app serial terminal: attach to the running VM's serial TCP endpoint and
 // stream the console (the same SerialConsoleSession protocol the E2E suites
 // drive unattended installs with).

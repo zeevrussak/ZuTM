@@ -1,4 +1,4 @@
-# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.
+# ZuTM (c) Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.
 #
 # Builds the Windows application icon src/ZuTM.App/Assets/app.ico from
 # assets/logo-1024.png (rendered from assets/logo.svg by make-logo-art.ps1).

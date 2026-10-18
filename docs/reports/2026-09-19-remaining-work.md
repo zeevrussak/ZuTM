@@ -1,6 +1,6 @@
 # Work Remaining — 2026-09-19
 
-**ZuTM © 2026 Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.**
+**ZuTM © 2026 Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.**
 
 Authoritative statuses live in [SDR.md](../SDR.md); this is the prioritized
 backlog distilled from it after today's pass.

@@ -1,6 +1,6 @@
 # ZuTM — Software Design Specification (SDS)
 
-**ZuTM © 2026 Ze'ev Russak <zutm@20032014.xyz> — ZuTM Attribution License.**
+**ZuTM © 2026 Ze'ev Russak <zutm@20032014.xyz> — Apache License 2.0.**
 
 - **Companion document:** [SDR.md](SDR.md) — the requirements this design satisfies (FR-xx references below).
 - **Normative details** live in sibling specs: [utm-compatibility.md](utm-compatibility.md) (file format) and [architecture.md](architecture.md) (component overview). This document records the *design decisions* and their rationale.
@@ -35,7 +35,7 @@ Design constants:
 
 - **D-01 · Loopback-only control plane.** Every VM endpoint (SPICE, QMP, serial, guest agent) binds `127.0.0.1` with an ephemeral port allocated per launch (FR-118). Rationale: no remote exposure by default; no port collisions; ports are internal state, not configuration.
 - **D-02 · The app never reimplements virtualization.** QEMU is a separate GPLv2 program discovered under `runtimes\qemu` (or `ZUTM_QEMU_ROOT`). This keeps licensing clean (NOTICE) and matches how UTM treats QEMU on macOS.
-- **D-03 · Clean-room UTM compatibility.** The `.utm` format is implemented from documented behavior only; no UTM source is included (license incompatibility with the ZuTM Attribution License).
+- **D-03 · Clean-room UTM compatibility.** The `.utm` format is implemented from documented behavior only; no UTM source is included (clean-room policy; see AGENTS.md).
 
 ## 2. Component design
 
